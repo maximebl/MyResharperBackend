@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net472</TargetFramework>
+        <IsPackable>True</IsPackable>
+        <DefineConstants>$(DefineConstants);RESHARPER</DefineConstants>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="JetBrains.ReSharper.CommandLineTools" Version="2025.2.5">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="JetBrains.ReSharper.SDK" Version="$(SdkVersion)" PrivateAssets="all"/>
+        <PackageReference Include="Wave" Version="$(WaveVersion)"/>
+<!--        <PackageReference Include="JetBrains.Psi.Features.Cpp.Src.Core" Version="233.0.20240606.115259" />-->
+    </ItemGroup>
+
+
+    <ItemGroup>
+        <Content Include="..\..\..\dependencies.json" PackagePath="" Pack="true" Visible="false"/>
+        <Content Include="bin\$(AssemblyName)\$(Configuration)\$(AssemblyName).dll" PackagePath="dotFiles" Pack="true" Visible="false"/>
+        <Content Include="bin\$(AssemblyName)\$(Configuration)\$(AssemblyName).pdb" PackagePath="dotFiles" Pack="true" Visible="false"/>
+
+        <!-- TODO: add additional assemblies -->
+    </ItemGroup>
+
+</Project>

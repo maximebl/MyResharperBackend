@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReSharperPlugin.MyBackend", "src\dotnet\ReSharperPlugin.MyBackend\ReSharperPlugin.MyBackend.csproj", "{AD0DAF5C-181C-4933-B8D5-6EB7F5E5AC97}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReSharperPlugin.MyBackend.Rider", "src\dotnet\ReSharperPlugin.MyBackend\ReSharperPlugin.MyBackend.Rider.csproj", "{D7F0E8D1-E9EE-4F25-84B4-A0296CB30489}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReSharperPlugin.MyBackend.Tests", "src\dotnet\ReSharperPlugin.MyBackend.Tests\ReSharperPlugin.MyBackend.Tests.csproj", "{3A1D2321-3724-4FEC-BA33-46B679386D61}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AD0DAF5C-181C-4933-B8D5-6EB7F5E5AC97}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AD0DAF5C-181C-4933-B8D5-6EB7F5E5AC97}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AD0DAF5C-181C-4933-B8D5-6EB7F5E5AC97}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AD0DAF5C-181C-4933-B8D5-6EB7F5E5AC97}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D7F0E8D1-E9EE-4F25-84B4-A0296CB30489}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7F0E8D1-E9EE-4F25-84B4-A0296CB30489}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7F0E8D1-E9EE-4F25-84B4-A0296CB30489}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7F0E8D1-E9EE-4F25-84B4-A0296CB30489}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3A1D2321-3724-4FEC-BA33-46B679386D61}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3A1D2321-3724-4FEC-BA33-46B679386D61}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3A1D2321-3724-4FEC-BA33-46B679386D61}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3A1D2321-3724-4FEC-BA33-46B679386D61}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

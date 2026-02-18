@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net472</TargetFramework>
+        <AssemblyName>ReSharperPlugin.MyBackend</AssemblyName>
+        <RootNamespace>$(AssemblyName)</RootNamespace>
+        <IsPackable>false</IsPackable>
+        <DefineConstants>$(DefineConstants);RIDER</DefineConstants>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="JetBrains.ReSharper.CommandLineTools" Version="2025.2.5">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="JetBrains.Rider.SDK" Version="$(SdkVersion)"/>
+    </ItemGroup>
+
+</Project>
