@@ -1,16 +1,22 @@
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using JetBrains.Application.BuildScript.Application.Zones;
 using JetBrains.Lifetimes;
 using JetBrains.ProjectModel;
 using JetBrains.Application.Parts;
 using JetBrains.Rd.Tasks;
+using JetBrains.ReSharper.Feature.Services.Cpp.DeclaredElements;
 using JetBrains.ReSharper.Feature.Services.Protocol;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.Files;
 using JetBrains.ReSharper.Resources.Shell;
 using JetBrains.Rider.Model;
 using JetBrains.Util;
-//using JetBrains.ReSharper.Psi.Cpp;
+using JetBrains.ReSharper.Psi.Cpp;
+using JetBrains.ReSharper.Psi.Cpp.Tree;
+using JetBrains.ReSharper.Psi.Tree;
+using JetBrains.ReSharper.Feature.Services.Cpp;
 
 namespace ReSharperPlugin.MyBackend;
 
@@ -31,21 +37,34 @@ public class MyComponent
         });
 
         // Handle a frontend "request": give me all function names in a file
-        // model.GetFunctionNames.SetAsync((lt, filePath) =>
-        // {
-        //     using (ReadLockCookie.Create())
-        //     {
-        //         var path = VirtualFileSystemPath.Parse(filePath, InteractionContext.SolutionContext);
-        //         var projectFile = solution.FindProjectItemsByLocation(path)
-        //             .OfType<IProjectFile>()
-        //             .FirstOrDefault();
-        //         var psiSourceFile = projectFile.ToSourceFile();
-        //         var psiFile = psiSourceFile.GetPrimaryPsiFile();
-        //         
-        //         
-        //     }
-        //
-        //     return null;
-        // });
+        model.GetFunctionNames.SetAsync((lt, filePath) =>
+        {
+            var names = new List<string>();
+            
+            MessageBox.ShowInfo("Entering SetAsync");
+            using (ReadLockCookie.Create())
+            {
+                var path = VirtualFileSystemPath.Parse(filePath, InteractionContext.SolutionContext);
+                var projectFile = solution.FindProjectItemsByLocation(path)
+                    .OfType<IProjectFile>()
+                    .FirstOrDefault();
+                var psiSourceFile = projectFile.ToSourceFile();
+                var psiFile = psiSourceFile.GetPrimaryPsiFile();
+                
+                if (psiFile is CppFile cppFile)
+                {
+                    foreach (var decl in cppFile.Descendants<IDeclaration>())
+                    {
+                        var element = decl.DeclaredElement;
+                        var resolvedEntity = element.GetResolveEntityFromDeclaredElement();
+                        var name = resolvedEntity.Name.ToString();
+                        
+                        MessageBox.ShowInfo("Found resolved entity: " + name);
+                        names.Add(name);
+                    }
+                }
+            }
+            return Task.FromResult(names.ToArray());
+        });
     }
 }
