@@ -42,32 +42,25 @@ namespace JetBrains.Rider.Model
   {
     //fields
     //public fields
-    [NotNull] public ISignal<string> Mycoolvalue => _Mycoolvalue;
-    [NotNull] public IRdEndpoint<string, string[]> GetFunctionNames => _GetFunctionNames;
+    [NotNull] public IRdEndpoint<MyFindRequest, string[]> GetFunctionNames => _GetFunctionNames;
     
     //private fields
-    [NotNull] private readonly RdSignal<string> _Mycoolvalue;
-    [NotNull] private readonly RdCall<string, string[]> _GetFunctionNames;
+    [NotNull] private readonly RdCall<MyFindRequest, string[]> _GetFunctionNames;
     
     //primary constructor
     private MyBackendModel(
-      [NotNull] RdSignal<string> mycoolvalue,
-      [NotNull] RdCall<string, string[]> getFunctionNames
+      [NotNull] RdCall<MyFindRequest, string[]> getFunctionNames
     )
     {
-      if (mycoolvalue == null) throw new ArgumentNullException("mycoolvalue");
       if (getFunctionNames == null) throw new ArgumentNullException("getFunctionNames");
       
-      _Mycoolvalue = mycoolvalue;
       _GetFunctionNames = getFunctionNames;
-      BindableChildren.Add(new KeyValuePair<string, object>("mycoolvalue", _Mycoolvalue));
       BindableChildren.Add(new KeyValuePair<string, object>("getFunctionNames", _GetFunctionNames));
     }
     //secondary constructor
     internal MyBackendModel (
     ) : this (
-      new RdSignal<string>(JetBrains.Rd.Impl.Serializers.ReadString, JetBrains.Rd.Impl.Serializers.WriteString),
-      new RdCall<string, string[]>(JetBrains.Rd.Impl.Serializers.ReadString, JetBrains.Rd.Impl.Serializers.WriteString, ReadStringArray, WriteStringArray)
+      new RdCall<MyFindRequest, string[]>(MyFindRequest.Read, MyFindRequest.Write, ReadStringArray, WriteStringArray)
     ) {}
     //deconstruct trait
     //statics
@@ -76,7 +69,7 @@ namespace JetBrains.Rider.Model
     
     public static  CtxWriteDelegate<string[]> WriteStringArray = JetBrains.Rd.Impl.Serializers.WriteString.Array();
     
-    protected override long SerializationHash => -8484046031559129444L;
+    protected override long SerializationHash => 345117295757149051L;
     
     protected override Action<ISerializers> Register => RegisterDeclaredTypesSerializers;
     public static void RegisterDeclaredTypesSerializers(ISerializers serializers)
@@ -97,7 +90,6 @@ namespace JetBrains.Rider.Model
     {
       printer.Println("MyBackendModel (");
       using (printer.IndentCookie()) {
-        printer.Print("mycoolvalue = "); _Mycoolvalue.PrintEx(printer); printer.Println();
         printer.Print("getFunctionNames = "); _GetFunctionNames.PrintEx(printer); printer.Println();
       }
       printer.Print(")");
@@ -115,6 +107,99 @@ namespace JetBrains.Rider.Model
     public static MyBackendModel GetMyBackendModel(this Solution solution)
     {
       return solution.GetOrCreateExtension("myBackendModel", () => new MyBackendModel());
+    }
+  }
+  
+  
+  /// <summary>
+  /// <p>Generated from: MyBackendModel.kt:23</p>
+  /// </summary>
+  public sealed class MyFindRequest : IPrintable, IEquatable<MyFindRequest>
+  {
+    //fields
+    //public fields
+    [NotNull] public string FilePath {get; private set;}
+    public int CaretOffset {get; private set;}
+    
+    //private fields
+    //primary constructor
+    public MyFindRequest(
+      [NotNull] string filePath,
+      int caretOffset
+    )
+    {
+      if (filePath == null) throw new ArgumentNullException("filePath");
+      
+      FilePath = filePath;
+      CaretOffset = caretOffset;
+    }
+    //secondary constructor
+    //deconstruct trait
+    public void Deconstruct([NotNull] out string filePath, out int caretOffset)
+    {
+      filePath = FilePath;
+      caretOffset = CaretOffset;
+    }
+    //statics
+    
+    public static CtxReadDelegate<MyFindRequest> Read = (ctx, reader) => 
+    {
+      var filePath = reader.ReadString();
+      var caretOffset = reader.ReadInt();
+      var _result = new MyFindRequest(filePath, caretOffset);
+      return _result;
+    };
+    
+    public static CtxWriteDelegate<MyFindRequest> Write = (ctx, writer, value) => 
+    {
+      writer.Write(value.FilePath);
+      writer.Write(value.CaretOffset);
+    };
+    
+    //constants
+    
+    //custom body
+    //methods
+    //equals trait
+    public override bool Equals(object obj)
+    {
+      if (ReferenceEquals(null, obj)) return false;
+      if (ReferenceEquals(this, obj)) return true;
+      if (obj.GetType() != GetType()) return false;
+      return Equals((MyFindRequest) obj);
+    }
+    public bool Equals(MyFindRequest other)
+    {
+      if (ReferenceEquals(null, other)) return false;
+      if (ReferenceEquals(this, other)) return true;
+      return FilePath == other.FilePath && CaretOffset == other.CaretOffset;
+    }
+    //hash code trait
+    public override int GetHashCode()
+    {
+      unchecked {
+        var hash = 0;
+        hash = hash * 31 + FilePath.GetHashCode();
+        hash = hash * 31 + CaretOffset.GetHashCode();
+        return hash;
+      }
+    }
+    //pretty print
+    public void Print(PrettyPrinter printer)
+    {
+      printer.Println("MyFindRequest (");
+      using (printer.IndentCookie()) {
+        printer.Print("filePath = "); FilePath.PrintEx(printer); printer.Println();
+        printer.Print("caretOffset = "); CaretOffset.PrintEx(printer); printer.Println();
+      }
+      printer.Print(")");
+    }
+    //toString
+    public override string ToString()
+    {
+      var printer = new SingleLinePrettyPrinter();
+      Print(printer);
+      return printer.ToString();
     }
   }
 }

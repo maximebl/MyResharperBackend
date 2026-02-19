@@ -19,12 +19,16 @@ object MyBackendModel : Ext(SolutionModel.Solution) {
         setting(Kotlin11Generator.Namespace, "com.jetbrains.rider.model")
     }
 
-    // Bidirectional event
-    val mycoovalue = signal("mycoolvalue", PredefinedType.string)
+    // Define the data structure for the request
+    val MyFindRequest = structdef {
+        field("filePath", PredefinedType.string)
+        field("caretOffset", PredefinedType.int)
+    }
 
     val getFunctionNames = call(
         "getFunctionNames",
-        paramType = PredefinedType.string,
-        resultType = array(PredefinedType.string)
-    );
+        MyFindRequest,
+        array(PredefinedType.string)
+    )
 }
+

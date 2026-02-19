@@ -7,6 +7,7 @@ using JetBrains.Lifetimes;
 using JetBrains.ProjectModel;
 using JetBrains.Application.Parts;
 using JetBrains.Application.Progress;
+using JetBrains.DocumentModel;
 using JetBrains.Rd.Tasks;
 using JetBrains.ReSharper.Feature.Services.Cpp.DeclaredElements;
 using JetBrains.ReSharper.Feature.Services.Protocol;
@@ -37,16 +38,20 @@ public class MyComponent
     public MyComponent(Lifetime lifetime, ISolution solution)
     {
         var model = solution.GetProtocolSolution().GetMyBackendModel();
-        model.Mycoolvalue.Advise(lifetime, value => { MessageBox.ShowInfo(value + " from c#"); });
 
         // Handle a frontend "request": give me all function names in a file
-        model.GetFunctionNames.SetAsync((lt, filePath) =>
+        model.GetFunctionNames.SetAsync((lt, request) =>
         {
             var names = new List<string>();
 
             MessageBox.ShowInfo("Entering SetAsync");
             using (ReadLockCookie.Create())
             {
+                // Inputs:
+                var filePath = request.FilePath;
+                var caretOffset = request.CaretOffset;
+
+                // Process request:
                 var path = VirtualFileSystemPath.Parse(filePath, InteractionContext.SolutionContext);
                 var projectFile = solution.FindProjectItemsByLocation(path)
                     .OfType<IProjectFile>()
@@ -58,64 +63,112 @@ public class MyComponent
 
                 if (psiFile is CppFile cppFile)
                 {
-                    foreach (var decl in cppFile.Descendants<IDeclaration>())
-                    {
-                        var element = decl.DeclaredElement;
-                        ICppResolveEntity resolvedEntity = element.GetResolveEntityFromDeclaredElement();
+                    var token = psiFile.FindTokenAt(new DocumentOffset(psiSourceFile.Document, caretOffset));
+                    var reference = token.Parent?.GetReferences().FirstOrDefault();
 
-                        if (element is ICppDeclaredElement cppElement)
+                    if (reference != null)
+                    {
+                        var targetElement = reference.Resolve().DeclaredElement;
+                        if (targetElement is ICppDeclaredElement cppElement)
                         {
+                            var firstFoundDeclaration = cppElement.GetSourceFiles().FirstOrDefault().GetLocation().FullPath;
+                            var declarationOffset = cppElement.GetDeclarations().FirstOrDefault().GetDocumentRange().TextRange.StartOffset;
                             var name = cppElement.ShortName;
                             var type = cppElement.GetElementType().PresentableName;
-                            var complexOffset = cppElement.GetSymbolLocation().ComplexOffset;
-                            var textOffset = cppElement.GetSymbolLocation().TextOffset;
-                            var locateOffset = cppElement.GetSymbolLocation().LocateTextOffset();
-                            var dbgDescription = cppElement.GetPrimarySymbol().DbgDescription;
-
-                            var declaredFile = decl.GetSourceFile()?.GetLocation()?.FullPath ?? "unknown";
-                            var declaredOffset = decl.GetDocumentRange().TextRange.StartOffset;
-                            
                             var usagesLog = new StringBuilder();
                             int usageCount = 0;
 
-                            // Define a consumer action that collects results
                             var consumer = new FindResultConsumer(result =>
                             {
                                 if (result is FindResultReference refResult)
                                 {
                                     var usageRange = refResult.Reference.GetDocumentRange();
-                                    var usageFile = usageRange.Document.GetPsiSourceFile(solution)?.GetLocation().Name ?? "Unknown File";
-                            
-                                    if (usageCount < 10) // Limit output to first 10 to avoid giant message boxes
-                                    {
-                                        usagesLog.AppendLine($" - Used in {usageFile} at offset {usageRange.TextRange.StartOffset}");
-                                    }
+                                    var usageFile =
+                                        usageRange.Document.GetPsiSourceFile(solution)?.GetLocation().Name ??
+                                        "Unknown File";
+
+                                    usagesLog.AppendLine(
+                                        $" - Used in {usageFile} at offset {usageRange.TextRange.StartOffset}");
                                     usageCount++;
                                 }
+
                                 return FindExecution.Continue;
                             });
 
                             // Execute the search
                             finder.FindReferences(cppElement, searchDomain, consumer, NullProgressIndicator.Instance);
-                            
-                            if (usageCount == 0) usagesLog.AppendLine(" - No usages found.");
-                            if (usageCount > 10) usagesLog.AppendLine($" - ... and {usageCount - 10} more.");
-
                             MessageBox.ShowInfo($@"
-                                                Entity Name: {name}
-                                                Entity Type: {type}
-                                                complexOffset: {complexOffset}
-                                                Text offset: {textOffset}
-                                                LocateTextOffset(): {locateOffset}
-                                                dbgDescription: {dbgDescription}
+                                                 Entity Name: {name}
+                                                 Entity Type: {type}
 
-                                                Declared in: {declaredFile} at offset {declaredOffset}
+                                                 Usages ({usageCount}):
+                                                 {usagesLog}
 
-                                                Usages ({usageCount}):
-                                                {usagesLog}
-                                                ");
+                                                 Declaration: {firstFoundDeclaration} : {declarationOffset}
+                                                 ");
+                            names.Add(firstFoundDeclaration);
+                            names.Add(declarationOffset.ToString());
                         }
                     }
+
+//                     foreach (var decl in cppFile.Descendants<IDeclaration>())
+//                     {
+//                         var element = decl.DeclaredElement;
+//                         ICppResolveEntity resolvedEntity = element.GetResolveEntityFromDeclaredElement();
+//
+//                         if (element is ICppDeclaredElement cppElement)
+//                         {
+//                             var name = cppElement.ShortName;
+//                             var type = cppElement.GetElementType().PresentableName;
+//                             var complexOffset = cppElement.GetSymbolLocation().ComplexOffset;
+//                             var textOffset = cppElement.GetSymbolLocation().TextOffset;
+//                             var locateOffset = cppElement.GetSymbolLocation().LocateTextOffset();
+//                             var dbgDescription = cppElement.GetPrimarySymbol().DbgDescription;
+//
+//                             var declaredFile = decl.GetSourceFile()?.GetLocation()?.FullPath ?? "unknown";
+//                             var declaredOffset = decl.GetDocumentRange().TextRange.StartOffset;
+//                             
+//                             var usagesLog = new StringBuilder();
+//                             int usageCount = 0;
+//
+//                             // Define a consumer action that collects results
+//                             var consumer = new FindResultConsumer(result =>
+//                             {
+//                                 if (result is FindResultReference refResult)
+//                                 {
+//                                     var usageRange = refResult.Reference.GetDocumentRange();
+//                                     var usageFile = usageRange.Document.GetPsiSourceFile(solution)?.GetLocation().Name ?? "Unknown File";
+//                             
+//                                     if (usageCount < 10) // Limit output to first 10 to avoid giant message boxes
+//                                     {
+//                                         usagesLog.AppendLine($" - Used in {usageFile} at offset {usageRange.TextRange.StartOffset}");
+//                                     usageCount++;
+//                                 }
+//                                 return FindExecution.Continue;
+//                             });
+//
+//                             // Execute the search
+//                             finder.FindReferences(cppElement, searchDomain, consumer, NullProgressIndicator.Instance);
+//                             
+//                             if (usageCount == 0) usagesLog.AppendLine(" - No usages found.");
+//                             if (usageCount > 10) usagesLog.AppendLine($" - ... and {usageCount - 10} more.");
+//
+//                             MessageBox.ShowInfo($@"
+//                                                 Entity Name: {name}
+//                                                 Entity Type: {type}
+//                                                 complexOffset: {complexOffset}
+//                                                 Text offset: {textOffset}
+//                                                 LocateTextOffset(): {locateOffset}
+//                                                 dbgDescription: {dbgDescription}
+//
+//                                                 Declared in: {declaredFile} at offset {declaredOffset}
+//
+//                                                 Usages ({usageCount}):
+//                                                 {usagesLog}
+//                                                 ");
+//                             names.Add(name);
+//                         }
+//                     }
                 }
             }
 

@@ -9,9 +9,5 @@ class MyComponent(project: Project) : LifetimedProjectComponent(project){
     init {
         val model = project.solution.myBackendModel;
 
-        model.mycoolvalue.fire("mycoolvalue");
-        model.mycoolvalue.advise(componentLifetime) {
-            println("mycoolvalue: $it from kotlin")
-        }
     }
 }
