@@ -30,6 +30,11 @@ using JetBrains.ReSharper.Psi.Search;
 using JetBrains.UI.Controls.TreeListView;
 using JetBrains.ReSharper.Feature.Services.Breadcrumbs;
 using JetBrains.ReSharper.Feature.Services.Cpp.Breadcrumbs;
+using JetBrains.ReSharper.Feature.Services.Cpp.Navigation.Goto;
+using JetBrains.ReSharper.Feature.Services.Cpp.Tree;
+using JetBrains.ReSharper.Psi.Cpp.Types;
+using JetBrains.ReSharper.TestRunner.Abstractions.Extensions;
+using IfStatementNavigator = JetBrains.ReSharper.Psi.Cpp.Tree.IfStatementNavigator;
 
 namespace ReSharperPlugin.MyBackend;
 
@@ -64,15 +69,80 @@ public class MyComponent
 
                 if (psiFile is CppFile cppFile)
                 {
-                    var documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
-                    var crumbs = new List<CrumbModel>();
-                    breadcrumbsProvider.CollectBreadcrumbs(psiSourceFile, documentOffset, crumbs);
+                    // CppStatementUtil.GetStatementsRange(cppFile, new TreeTextRange())
+                    // CppTreeUtil
+                    // CppStatementUtil
+                    // IfStatement
 
-                    var sb = new StringBuilder();
-                    foreach (var crumb in crumbs)
-                        sb.AppendLine(crumb.Text);
+                    /* Find all enclosing if statements */
+                    DocumentOffset documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
+                    ITreeNode nodeAtOffset = cppFile.FindNodeAt(documentOffset);
 
-                    MessageBox.ShowInfo($"Breadcrumbs at offset {caretOffset}:\n{sb}");
+                    IfStatement foundIf = nodeAtOffset.GetContainingNode<IfStatement>();
+                    while (foundIf != null)
+                    {
+                        CppIfStatementResolveEntity cppIf = foundIf.GetIfStatementResolveEntity();
+
+                        // Get if statement information:
+                        var offset = cppIf.GetTextOffset();
+                        var condition = cppIf.GetCondition();
+                        MessageBox.ShowInfo($@"
+                                       found if statement
+                                       Offset: {offset}
+                                       Condition: {condition?.ToString()}
+                                       ");
+                        foundIf = foundIf.GetContainingNode<IfStatement>();
+                    }
+
+
+                    /* Find the enclosing if statement */
+                    // DocumentOffset documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
+                    // ITreeNode nodeAtOffset = cppFile.FindNodeAt(documentOffset);
+                    //
+                    // IfStatement ifStatement = nodeAtOffset.GetContainingNode<IfStatement>();
+                    //
+                    // // Get if statement information:
+                    // CppIfStatementResolveEntity cppIf = ifStatement.GetIfStatementResolveEntity();
+                    // var offset = cppIf.GetTextOffset();
+                    // var condition = cppIf.GetCondition();
+                    // MessageBox.ShowInfo($@"
+                    //                    found if statement
+                    //                    Offset: {offset}
+                    //                    Condition: {condition?.ToString()}
+                    //                    ");
+
+                    /* Get enclosing function name */
+                    // DocumentOffset documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
+                    // ITreeNode nodeAtOffset = cppFile.FindNodeAt(documentOffset);
+                    // ICppFunctionDeclaratorResolveEntity enclosingFunction = nodeAtOffset.GetEnclosingFunction();
+                    // CppQualifiedNamePart enclosingFunctionName = enclosingFunction.GetFullNameForEntity().QualName.Name;
+                    //
+                    // MessageBox.ShowInfo($@"
+                    //                     Enclosing function name: {enclosingFunctionName}
+                    //                    ");
+
+                    /* Symbols */
+                    // IEnumerable<ICppSymbol> syms = CppGotoSymbolUtil.GetSymbolsFromPsiFile(psiSourceFile);
+                    // var symbolNames = new List<string>();
+                    //
+                    // foreach (var sym in syms)
+                    // {
+                    //     symbolNames.Add(sym.GetShortName());
+                    // }
+                    //
+                    // MessageBox.ShowInfo(
+                    //     $"Symbols in psiFile {psiSourceFile.DisplayName}:\n{string.Join("\n", symbolNames)}");
+
+                    /* Breadcrumbs */
+                    // var documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
+                    // var crumbs = new List<CrumbModel>();
+                    // breadcrumbsProvider.CollectBreadcrumbs(psiSourceFile, documentOffset, crumbs);
+                    // var sb = new StringBuilder();
+                    // foreach (var crumb in crumbs)
+                    //     sb.AppendLine(crumb.Text);
+                    //
+                    // MessageBox.ShowInfo($"Breadcrumbs at offset {caretOffset}:\n{sb}");
+
                     // ITreeNode token = psiFile.FindTokenAt(new DocumentOffset(psiSourceFile.Document, caretOffset));
 
                     // if (token != null && token.Language.Is<CppLanguage>())
