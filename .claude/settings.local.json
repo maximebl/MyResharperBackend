@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command:*)",
+      "Bash(powershell -File:*)",
+      "Bash(# Search for CppBreadcrumbsProvider and CollectBreadcrumbs in the two most likely DLLs using strings strings \"\"/c/Users/maxim/.nuget/packages/jetbrains.psi.features.cpp.src.core/253.0.20251112.231206/DotFiles/JetBrains.ReSharper.Feature.Services.Cpp.dll\"\")",
+      "Bash(# Find the APPLICATION_CONFIG_DIR equivalent on Windows - typically AppData/Roaming/JetBrains find \"\"/c/Users/maxim/AppData/Roaming/JetBrains\"\" -path \"\"*DecompilerCache*\"\" -name \"\"CppBreadcrumbsProvider.cs\"\")",
+      "Bash(powershell.exe -Command \" $dllPath = ''C:\\\\Users\\\\maxim\\\\.nuget\\\\packages\\\\jetbrains.psi.features.core\\\\233.0.20240606.112012\\\\DotFiles\\\\JetBrains.ReSharper.Feature.Services.dll'' try { $bytes = [System.IO.File]::ReadAllBytes\\($dllPath\\) $text = [System.Text.Encoding]::Unicode.GetString\\($bytes\\) $idx = $text.IndexOf\\(''PsiFeaturesImplZone''\\) if \\($idx -ge 0\\) { Write-Host $text.Substring\\([Math]::Max\\(0,$idx-100\\), 300\\) } else { Write-Host ''Not found in Unicode'' } } catch { Write-Host $_.Exception.Message } \")",
+      "Bash(/tmp/find_zone.ps1:*)",
+      "Bash(powershell.exe -File \"F:\\\\tmp\\\\find_zone.ps1\")",
+      "Bash(powershell.exe -File \"C:\\\\tmp\\\\find_zone.ps1\")",
+      "Bash(/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -File \"C:\\\\tmp\\\\find_zone.ps1\")",
+      "Bash(/c/Users/maxim/find_zone2.ps1:*)",
+      "Bash(/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -File \"C:\\\\Users\\\\maxim\\\\find_zone2.ps1\")",
+      "Bash(python3 -c \" import os, struct def find_in_dll\\(path, search\\): with open\\(path, ''rb''\\) as f: data = f.read\\(\\) # Search UTF-16 LE needle = search.encode\\(''utf-16-le''\\) results = [] idx = 0 while True: idx = data.find\\(needle, idx\\) if idx == -1: break # Grab surrounding context \\(as UTF-16\\) start = max\\(0, idx - 200\\) end = min\\(len\\(data\\), idx + len\\(needle\\) + 200\\) chunk = data[start:end] try: text = chunk.decode\\(''utf-16-le'', errors=''replace''\\) results.append\\(text\\) except: pass idx += len\\(needle\\) return results search = ''PsiFeaturesImplZone'' base = ''/c/Users/maxim/.nuget/packages/jetbrains.psi.features.core/233.0.20240606.112012/DotFiles'' for fname in os.listdir\\(base\\): if fname.endswith\\(''.dll''\\): path = os.path.join\\(base, fname\\) hits = find_in_dll\\(path, search\\) if hits: print\\(f''=== {fname} ===''\\) for h in hits: print\\(h[:300]\\) print\\(\\) \")",
+      "Bash(python3:*)",
+      "Bash(node --version:*)"
+    ]
+  }
+}

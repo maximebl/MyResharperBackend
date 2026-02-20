@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using JetBrains.Application.BuildScript.Application.Zones;
 using JetBrains.Lifetimes;
 using JetBrains.ProjectModel;
 using JetBrains.Application.Parts;
@@ -20,22 +19,24 @@ using JetBrains.ReSharper.Psi.Cpp;
 using JetBrains.ReSharper.Psi.Cpp.Tree;
 using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.ReSharper.Feature.Services.Cpp;
+using JetBrains.ReSharper.Feature.Services.CSharp.PredictiveDebugger;
 using JetBrains.ReSharper.Psi.Cpp.Language;
 using JetBrains.ReSharper.Psi.Cpp.Symbols;
+using JetBrains.ReSharper.Psi.Cpp.Tree.Util;
+using JetBrains.ReSharper.Psi.CSharp.Tree;
+using JetBrains.ReSharper.Psi.ExtensionsAPI.Tree;
 using JetBrains.ReSharper.Psi.Resolve;
 using JetBrains.ReSharper.Psi.Search;
+using JetBrains.UI.Controls.TreeListView;
+using JetBrains.ReSharper.Feature.Services.Breadcrumbs;
+using JetBrains.ReSharper.Feature.Services.Cpp.Breadcrumbs;
 
 namespace ReSharperPlugin.MyBackend;
-
-[ZoneMarker]
-public class ZoneMarker : IRequire<IProjectModelZone>
-{
-}
 
 [SolutionComponent(Instantiation.ContainerAsyncAnyThreadSafe)]
 public class MyComponent
 {
-    public MyComponent(Lifetime lifetime, ISolution solution)
+    public MyComponent(Lifetime lifetime, ISolution solution, BreadcrumbsProvider breadcrumbsProvider)
     {
         var model = solution.GetProtocolSolution().GetMyBackendModel();
 
@@ -63,53 +64,76 @@ public class MyComponent
 
                 if (psiFile is CppFile cppFile)
                 {
-                    var token = psiFile.FindTokenAt(new DocumentOffset(psiSourceFile.Document, caretOffset));
-                    var reference = token.Parent?.GetReferences().FirstOrDefault();
+                    var documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
+                    var crumbs = new List<CrumbModel>();
+                    breadcrumbsProvider.CollectBreadcrumbs(psiSourceFile, documentOffset, crumbs);
 
-                    if (reference != null)
-                    {
-                        var targetElement = reference.Resolve().DeclaredElement;
-                        if (targetElement is ICppDeclaredElement cppElement)
-                        {
-                            var firstFoundDeclaration = cppElement.GetSourceFiles().FirstOrDefault().GetLocation().FullPath;
-                            var declarationOffset = cppElement.GetDeclarations().FirstOrDefault().GetDocumentRange().TextRange.StartOffset;
-                            var name = cppElement.ShortName;
-                            var type = cppElement.GetElementType().PresentableName;
-                            var usagesLog = new StringBuilder();
-                            int usageCount = 0;
+                    var sb = new StringBuilder();
+                    foreach (var crumb in crumbs)
+                        sb.AppendLine(crumb.Text);
 
-                            var consumer = new FindResultConsumer(result =>
-                            {
-                                if (result is FindResultReference refResult)
-                                {
-                                    var usageRange = refResult.Reference.GetDocumentRange();
-                                    var usageFile =
-                                        usageRange.Document.GetPsiSourceFile(solution)?.GetLocation().Name ??
-                                        "Unknown File";
+                    MessageBox.ShowInfo($"Breadcrumbs at offset {caretOffset}:\n{sb}");
+                    // ITreeNode token = psiFile.FindTokenAt(new DocumentOffset(psiSourceFile.Document, caretOffset));
 
-                                    usagesLog.AppendLine(
-                                        $" - Used in {usageFile} at offset {usageRange.TextRange.StartOffset}");
-                                    usageCount++;
-                                }
+                    // if (token != null && token.Language.Is<CppLanguage>())
+                    // {
+                    //
+                    //     MessageBox.ShowInfo($@"
+                    //                       Node type:
+                    //                        ");
+                    // }
 
-                                return FindExecution.Continue;
-                            });
+                    // var condition = token.GetContainingCodeFragment().IfStatement().Condition.ToString();
+                    // var statement = token?.GetContainingNode<ICppIfStatementResolveEntity>(); 
 
-                            // Execute the search
-                            finder.FindReferences(cppElement, searchDomain, consumer, NullProgressIndicator.Instance);
-                            MessageBox.ShowInfo($@"
-                                                 Entity Name: {name}
-                                                 Entity Type: {type}
+                    // var statement = WalkFunctionFromOffset(caretOffset);
 
-                                                 Usages ({usageCount}):
-                                                 {usagesLog}
-
-                                                 Declaration: {firstFoundDeclaration} : {declarationOffset}
-                                                 ");
-                            names.Add(firstFoundDeclaration);
-                            names.Add(declarationOffset.ToString());
-                        }
-                    }
+//                     var token = psiFile.FindTokenAt(new DocumentOffset(psiSourceFile.Document, caretOffset));
+//                     var reference = token.Parent?.GetReferences().FirstOrDefault();
+//                     if (reference != null)
+//                     {
+//                         var targetElement = reference.Resolve().DeclaredElement;
+//                         if (targetElement is ICppDeclaredElement cppElement)
+//                         {
+//                             var firstFoundDeclaration = cppElement.GetSourceFiles().FirstOrDefault().GetLocation().FullPath;
+//                             var declarationOffset = cppElement.GetDeclarations().FirstOrDefault().GetDocumentRange().TextRange.StartOffset;
+//                             var name = cppElement.ShortName;
+//                             var type = cppElement.GetElementType().PresentableName;
+//                             var usagesLog = new StringBuilder();
+//                             int usageCount = 0;
+//
+//                             var consumer = new FindResultConsumer(result =>
+//                             {
+//                                 if (result is FindResultReference refResult)
+//                                 {
+//                                     var usageRange = refResult.Reference.GetDocumentRange();
+//                                     var usageFile =
+//                                         usageRange.Document.GetPsiSourceFile(solution)?.GetLocation().Name ??
+//                                         "Unknown File";
+//
+//                                     usagesLog.AppendLine(
+//                                         $" - Used in {usageFile} at offset {usageRange.TextRange.StartOffset}");
+//                                     usageCount++;
+//                                 }
+//
+//                                 return FindExecution.Continue;
+//                             });
+//
+//                             // Execute the search
+//                             finder.FindReferences(cppElement, searchDomain, consumer, NullProgressIndicator.Instance);
+//                             MessageBox.ShowInfo($@"
+//                                                  Entity Name: {name}
+//                                                  Entity Type: {type}
+//
+//                                                  Usages ({usageCount}):
+//                                                  {usagesLog}
+//
+//                                                  Declaration: {firstFoundDeclaration} : {declarationOffset}
+//                                                  ");
+//                             names.Add(firstFoundDeclaration);
+//                             names.Add(declarationOffset.ToString());
+//                         }
+//                     }
 
 //                     foreach (var decl in cppFile.Descendants<IDeclaration>())
 //                     {
@@ -174,5 +198,18 @@ public class MyComponent
 
             return Task.FromResult(names.ToArray());
         });
+    }
+
+    public struct StatementInfo
+    {
+        public string filePath;
+        public int offset;
+    }
+
+    StatementInfo WalkFunctionFromOffset(int offset)
+    {
+        var result = new StatementInfo();
+
+        return result;
     }
 }
