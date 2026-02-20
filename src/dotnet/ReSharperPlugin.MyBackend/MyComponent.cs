@@ -7,6 +7,7 @@ using JetBrains.ProjectModel;
 using JetBrains.Application.Parts;
 using JetBrains.Application.Progress;
 using JetBrains.DocumentModel;
+using JetBrains.IDE.UI.Extensions;
 using JetBrains.Rd.Tasks;
 using JetBrains.ReSharper.Feature.Services.Cpp.DeclaredElements;
 using JetBrains.ReSharper.Feature.Services.Protocol;
@@ -33,6 +34,7 @@ using JetBrains.ReSharper.Feature.Services.Cpp.Breadcrumbs;
 using JetBrains.ReSharper.Feature.Services.Cpp.Navigation.Goto;
 using JetBrains.ReSharper.Feature.Services.Cpp.Tree;
 using JetBrains.ReSharper.Psi.Cpp.Types;
+using JetBrains.ReSharper.Psi.Resx.Utils;
 using JetBrains.ReSharper.TestRunner.Abstractions.Extensions;
 using IfStatementNavigator = JetBrains.ReSharper.Psi.Cpp.Tree.IfStatementNavigator;
 
@@ -69,31 +71,86 @@ public class MyComponent
 
                 if (psiFile is CppFile cppFile)
                 {
-                    // CppStatementUtil.GetStatementsRange(cppFile, new TreeTextRange())
                     // CppTreeUtil
                     // CppStatementUtil
-                    // IfStatement
 
-                    /* Find all enclosing if statements */
-                    DocumentOffset documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
-                    ITreeNode nodeAtOffset = cppFile.FindNodeAt(documentOffset);
-
-                    IfStatement foundIf = nodeAtOffset.GetContainingNode<IfStatement>();
-                    while (foundIf != null)
+                    /* Find all:
+                         - if statements
+                         - for statements
+                         - lambda declarations
+                     Enclosing the caret */
+                    var documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
+                    var nodeAtOffset = cppFile.FindNodeAt(documentOffset);
+                    var current = nodeAtOffset;
+                    
+                    while (current != null)
                     {
-                        CppIfStatementResolveEntity cppIf = foundIf.GetIfStatementResolveEntity();
+                        if (current is IfStatement ifStmt)
+                        {
+                            var cppIf = ifStmt.GetIfStatementResolveEntity();
+                            var offset = cppIf.GetTextOffset();
+                            var condition = cppIf.GetCondition();
 
-                        // Get if statement information:
-                        var offset = cppIf.GetTextOffset();
-                        var condition = cppIf.GetCondition();
-                        MessageBox.ShowInfo($@"
-                                       found if statement
-                                       Offset: {offset}
-                                       Condition: {condition?.ToString()}
-                                       ");
-                        foundIf = foundIf.GetContainingNode<IfStatement>();
+                            MessageBox.ShowInfo($@"
+                                                found enclosing if
+                                                Offset: {offset}
+                                                Condition: {condition}
+                                                ");
+                        }
+                        else if (current is ForStatement forStmt)
+                        {
+                            var cppFor = forStmt.GetResolveEntity();
+                            var offset = cppFor.GetTextOffset();
+                            var condition = cppFor.GetCondition();
+
+                            MessageBox.ShowInfo($@"
+                                                found enclosing for
+                                                Offset: {offset}
+                                                Condition: {condition}
+                                                ");
+                        }
+                        else if (current is LambdaExpression lambda)
+                        {
+                            var range = lambda.GetDocumentRange().TextRange;
+                            var lambdaParameters = lambda.LambdaDeclaratorNode.GetText();
+                            var lambdaCapture = lambda.LambdaIntroducerNode.GetText();
+                            var variableDecl = lambda.GetContainingNode<IDeclaration>();
+                            var variableElement = variableDecl?.DeclaredElement;
+                            var lambdaName = variableElement?.ShortName;
+                            var lambdaBody = lambda.LambdaBodyNode.GetText();
+
+                            MessageBox.ShowInfo($@"
+                                                found enclosing lambda
+                                                ShortName : {lambdaName}
+                                                Offset : {range.StartOffset}
+                                                Parameters : {lambdaParameters}
+                                                Capture : {lambdaCapture}
+                                                Variable content 2 : {lambdaBody}
+                                                ");
+                        }
+
+                        current = current.Parent;
                     }
 
+
+                    /* Find all enclosing if statements */
+                    // DocumentOffset documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
+                    // ITreeNode nodeAtOffset = cppFile.FindNodeAt(documentOffset);
+                    // IfStatement foundIf = nodeAtOffset.GetContainingNode<IfStatement>();
+                    // while (foundIf != null)
+                    // {
+                    //     CppIfStatementResolveEntity cppIf = foundIf.GetIfStatementResolveEntity();
+                    //
+                    //     // Get if statement information:
+                    //     var offset = cppIf.GetTextOffset();
+                    //     var condition = cppIf.GetCondition();
+                    //     MessageBox.ShowInfo($@"
+                    //                    found if statement
+                    //                    Offset: {offset}
+                    //                    Condition: {condition?.ToString()}
+                    //                    ");
+                    //     foundIf = foundIf.GetContainingNode<IfStatement>();
+                    // }
 
                     /* Find the enclosing if statement */
                     // DocumentOffset documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
