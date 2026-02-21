@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using JetBrains.Lifetimes;
@@ -32,6 +33,7 @@ using JetBrains.UI.Controls.TreeListView;
 using JetBrains.ReSharper.Feature.Services.Breadcrumbs;
 using JetBrains.ReSharper.Feature.Services.Cpp.Breadcrumbs;
 using JetBrains.ReSharper.Feature.Services.Cpp.Navigation.Goto;
+using JetBrains.ReSharper.Feature.Services.Cpp.RmlDfa;
 using JetBrains.ReSharper.Feature.Services.Cpp.Tree;
 using JetBrains.ReSharper.Psi.Cpp.Types;
 using JetBrains.ReSharper.Psi.Resx.Utils;
@@ -50,7 +52,7 @@ public class MyComponent
         // Handle a frontend "request": give me all function names in a file
         model.GetFunctionNames.SetAsync((lt, request) =>
         {
-            var names = new List<string>();
+            var collectedStatements = new List<StatementInfo>();
 
             MessageBox.ShowInfo("Entering SetAsync");
             using (ReadLockCookie.Create())
@@ -71,271 +73,105 @@ public class MyComponent
 
                 if (psiFile is CppFile cppFile)
                 {
-                    // CppTreeUtil
-                    // CppStatementUtil
+                    var documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
+                    var nodeAtOffset = cppFile.FindNodeAt(documentOffset);
 
-                    /* Find all:
+                    /*
+                     Find all:
                          - if statements
                          - for statements
                          - lambda declarations
-                     Enclosing the caret */
-                    var documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
-                    var nodeAtOffset = cppFile.FindNodeAt(documentOffset);
-                    var current = nodeAtOffset;
-                    
-                    while (current != null)
-                    {
-                        if (current is IfStatement ifStmt)
-                        {
-                            var cppIf = ifStmt.GetIfStatementResolveEntity();
-                            var offset = cppIf.GetTextOffset();
-                            var condition = cppIf.GetCondition();
-
-                            MessageBox.ShowInfo($@"
-                                                found enclosing if
-                                                Offset: {offset}
-                                                Condition: {condition}
-                                                ");
-                        }
-                        else if (current is ForStatement forStmt)
-                        {
-                            var cppFor = forStmt.GetResolveEntity();
-                            var offset = cppFor.GetTextOffset();
-                            var condition = cppFor.GetCondition();
-
-                            MessageBox.ShowInfo($@"
-                                                found enclosing for
-                                                Offset: {offset}
-                                                Condition: {condition}
-                                                ");
-                        }
-                        else if (current is LambdaExpression lambda)
-                        {
-                            var range = lambda.GetDocumentRange().TextRange;
-                            var lambdaParameters = lambda.LambdaDeclaratorNode.GetText();
-                            var lambdaCapture = lambda.LambdaIntroducerNode.GetText();
-                            var variableDecl = lambda.GetContainingNode<IDeclaration>();
-                            var variableElement = variableDecl?.DeclaredElement;
-                            var lambdaName = variableElement?.ShortName;
-                            var lambdaBody = lambda.LambdaBodyNode.GetText();
-
-                            MessageBox.ShowInfo($@"
-                                                found enclosing lambda
-                                                ShortName : {lambdaName}
-                                                Offset : {range.StartOffset}
-                                                Parameters : {lambdaParameters}
-                                                Capture : {lambdaCapture}
-                                                Variable content 2 : {lambdaBody}
-                                                ");
-                        }
-
-                        current = current.Parent;
-                    }
-
-
-                    /* Find all enclosing if statements */
-                    // DocumentOffset documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
-                    // ITreeNode nodeAtOffset = cppFile.FindNodeAt(documentOffset);
-                    // IfStatement foundIf = nodeAtOffset.GetContainingNode<IfStatement>();
-                    // while (foundIf != null)
-                    // {
-                    //     CppIfStatementResolveEntity cppIf = foundIf.GetIfStatementResolveEntity();
-                    //
-                    //     // Get if statement information:
-                    //     var offset = cppIf.GetTextOffset();
-                    //     var condition = cppIf.GetCondition();
-                    //     MessageBox.ShowInfo($@"
-                    //                    found if statement
-                    //                    Offset: {offset}
-                    //                    Condition: {condition?.ToString()}
-                    //                    ");
-                    //     foundIf = foundIf.GetContainingNode<IfStatement>();
-                    // }
-
-                    /* Find the enclosing if statement */
-                    // DocumentOffset documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
-                    // ITreeNode nodeAtOffset = cppFile.FindNodeAt(documentOffset);
-                    //
-                    // IfStatement ifStatement = nodeAtOffset.GetContainingNode<IfStatement>();
-                    //
-                    // // Get if statement information:
-                    // CppIfStatementResolveEntity cppIf = ifStatement.GetIfStatementResolveEntity();
-                    // var offset = cppIf.GetTextOffset();
-                    // var condition = cppIf.GetCondition();
-                    // MessageBox.ShowInfo($@"
-                    //                    found if statement
-                    //                    Offset: {offset}
-                    //                    Condition: {condition?.ToString()}
-                    //                    ");
-
-                    /* Get enclosing function name */
-                    // DocumentOffset documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
-                    // ITreeNode nodeAtOffset = cppFile.FindNodeAt(documentOffset);
-                    // ICppFunctionDeclaratorResolveEntity enclosingFunction = nodeAtOffset.GetEnclosingFunction();
-                    // CppQualifiedNamePart enclosingFunctionName = enclosingFunction.GetFullNameForEntity().QualName.Name;
-                    //
-                    // MessageBox.ShowInfo($@"
-                    //                     Enclosing function name: {enclosingFunctionName}
-                    //                    ");
-
-                    /* Symbols */
-                    // IEnumerable<ICppSymbol> syms = CppGotoSymbolUtil.GetSymbolsFromPsiFile(psiSourceFile);
-                    // var symbolNames = new List<string>();
-                    //
-                    // foreach (var sym in syms)
-                    // {
-                    //     symbolNames.Add(sym.GetShortName());
-                    // }
-                    //
-                    // MessageBox.ShowInfo(
-                    //     $"Symbols in psiFile {psiSourceFile.DisplayName}:\n{string.Join("\n", symbolNames)}");
-
-                    /* Breadcrumbs */
-                    // var documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
-                    // var crumbs = new List<CrumbModel>();
-                    // breadcrumbsProvider.CollectBreadcrumbs(psiSourceFile, documentOffset, crumbs);
-                    // var sb = new StringBuilder();
-                    // foreach (var crumb in crumbs)
-                    //     sb.AppendLine(crumb.Text);
-                    //
-                    // MessageBox.ShowInfo($"Breadcrumbs at offset {caretOffset}:\n{sb}");
-
-                    // ITreeNode token = psiFile.FindTokenAt(new DocumentOffset(psiSourceFile.Document, caretOffset));
-
-                    // if (token != null && token.Language.Is<CppLanguage>())
-                    // {
-                    //
-                    //     MessageBox.ShowInfo($@"
-                    //                       Node type:
-                    //                        ");
-                    // }
-
-                    // var condition = token.GetContainingCodeFragment().IfStatement().Condition.ToString();
-                    // var statement = token?.GetContainingNode<ICppIfStatementResolveEntity>(); 
-
-                    // var statement = WalkFunctionFromOffset(caretOffset);
-
-//                     var token = psiFile.FindTokenAt(new DocumentOffset(psiSourceFile.Document, caretOffset));
-//                     var reference = token.Parent?.GetReferences().FirstOrDefault();
-//                     if (reference != null)
-//                     {
-//                         var targetElement = reference.Resolve().DeclaredElement;
-//                         if (targetElement is ICppDeclaredElement cppElement)
-//                         {
-//                             var firstFoundDeclaration = cppElement.GetSourceFiles().FirstOrDefault().GetLocation().FullPath;
-//                             var declarationOffset = cppElement.GetDeclarations().FirstOrDefault().GetDocumentRange().TextRange.StartOffset;
-//                             var name = cppElement.ShortName;
-//                             var type = cppElement.GetElementType().PresentableName;
-//                             var usagesLog = new StringBuilder();
-//                             int usageCount = 0;
-//
-//                             var consumer = new FindResultConsumer(result =>
-//                             {
-//                                 if (result is FindResultReference refResult)
-//                                 {
-//                                     var usageRange = refResult.Reference.GetDocumentRange();
-//                                     var usageFile =
-//                                         usageRange.Document.GetPsiSourceFile(solution)?.GetLocation().Name ??
-//                                         "Unknown File";
-//
-//                                     usagesLog.AppendLine(
-//                                         $" - Used in {usageFile} at offset {usageRange.TextRange.StartOffset}");
-//                                     usageCount++;
-//                                 }
-//
-//                                 return FindExecution.Continue;
-//                             });
-//
-//                             // Execute the search
-//                             finder.FindReferences(cppElement, searchDomain, consumer, NullProgressIndicator.Instance);
-//                             MessageBox.ShowInfo($@"
-//                                                  Entity Name: {name}
-//                                                  Entity Type: {type}
-//
-//                                                  Usages ({usageCount}):
-//                                                  {usagesLog}
-//
-//                                                  Declaration: {firstFoundDeclaration} : {declarationOffset}
-//                                                  ");
-//                             names.Add(firstFoundDeclaration);
-//                             names.Add(declarationOffset.ToString());
-//                         }
-//                     }
-
-//                     foreach (var decl in cppFile.Descendants<IDeclaration>())
-//                     {
-//                         var element = decl.DeclaredElement;
-//                         ICppResolveEntity resolvedEntity = element.GetResolveEntityFromDeclaredElement();
-//
-//                         if (element is ICppDeclaredElement cppElement)
-//                         {
-//                             var name = cppElement.ShortName;
-//                             var type = cppElement.GetElementType().PresentableName;
-//                             var complexOffset = cppElement.GetSymbolLocation().ComplexOffset;
-//                             var textOffset = cppElement.GetSymbolLocation().TextOffset;
-//                             var locateOffset = cppElement.GetSymbolLocation().LocateTextOffset();
-//                             var dbgDescription = cppElement.GetPrimarySymbol().DbgDescription;
-//
-//                             var declaredFile = decl.GetSourceFile()?.GetLocation()?.FullPath ?? "unknown";
-//                             var declaredOffset = decl.GetDocumentRange().TextRange.StartOffset;
-//                             
-//                             var usagesLog = new StringBuilder();
-//                             int usageCount = 0;
-//
-//                             // Define a consumer action that collects results
-//                             var consumer = new FindResultConsumer(result =>
-//                             {
-//                                 if (result is FindResultReference refResult)
-//                                 {
-//                                     var usageRange = refResult.Reference.GetDocumentRange();
-//                                     var usageFile = usageRange.Document.GetPsiSourceFile(solution)?.GetLocation().Name ?? "Unknown File";
-//                             
-//                                     if (usageCount < 10) // Limit output to first 10 to avoid giant message boxes
-//                                     {
-//                                         usagesLog.AppendLine($" - Used in {usageFile} at offset {usageRange.TextRange.StartOffset}");
-//                                     usageCount++;
-//                                 }
-//                                 return FindExecution.Continue;
-//                             });
-//
-//                             // Execute the search
-//                             finder.FindReferences(cppElement, searchDomain, consumer, NullProgressIndicator.Instance);
-//                             
-//                             if (usageCount == 0) usagesLog.AppendLine(" - No usages found.");
-//                             if (usageCount > 10) usagesLog.AppendLine($" - ... and {usageCount - 10} more.");
-//
-//                             MessageBox.ShowInfo($@"
-//                                                 Entity Name: {name}
-//                                                 Entity Type: {type}
-//                                                 complexOffset: {complexOffset}
-//                                                 Text offset: {textOffset}
-//                                                 LocateTextOffset(): {locateOffset}
-//                                                 dbgDescription: {dbgDescription}
-//
-//                                                 Declared in: {declaredFile} at offset {declaredOffset}
-//
-//                                                 Usages ({usageCount}):
-//                                                 {usagesLog}
-//                                                 ");
-//                             names.Add(name);
-//                         }
-//                     }
+                     Enclosing the caret
+                     */
+                    collectedStatements = WalkFunctionFromNode(nodeAtOffset);
                 }
             }
 
-            return Task.FromResult(names.ToArray());
+            return Task.FromResult(collectedStatements.ToArray());
         });
     }
 
-    public struct StatementInfo
+    // Return path to reach a given node.
+    List<StatementInfo> WalkFunctionFromNode(ITreeNode node)
     {
-        public string filePath;
-        public int offset;
-    }
+        var result = new List<StatementInfo>();
 
-    StatementInfo WalkFunctionFromOffset(int offset)
-    {
-        var result = new StatementInfo();
+        var current = node;
+        while (current != null)
+        {
+            if (current is IfStatement ifStmt)
+            {
+                var cppIf = ifStmt.GetIfStatementResolveEntity();
+                var offset = cppIf.GetTextOffset();
+                var condition = cppIf.GetCondition();
+                var escapedCondition = WebUtility.HtmlEncode(condition.ToString());
+                var name = $"if ({escapedCondition})";
+                
+                // Detect if caret is inside the else-branch
+                var elseNode = ifStmt.ElseStatement;
+                if (elseNode != null)
+                {
+                    var elseRange = elseNode.GetDocumentRange().TextRange;
+                    var caretOffset = node.GetDocumentRange().TextRange.StartOffset;
+
+                    if (elseRange.Contains(caretOffset))
+                    {
+                        // We are in the else-part of this if
+                        name = $"else : {name}";
+                        offset = elseNode.GetTreeStartOffset().Offset;
+                    }
+                }
+                
+                var statement = new StatementInfo(name, offset);
+                result.Add(statement);
+                MessageBox.ShowInfo($@"
+                                    found enclosing if
+                                    Offset: {offset}
+                                    Name: {name}
+                                    ");
+            }
+            else if (current is ForStatement forStmt)
+            {
+                var cppFor = forStmt.GetResolveEntity();
+                var offset = cppFor.GetTextOffset();
+                var condition = cppFor.GetCondition();
+                var escapedCondition = WebUtility.HtmlEncode(condition.ToString());
+                var name = $"for ({escapedCondition})";
+                var statement = new StatementInfo(name, offset);
+                result.Add(statement);
+                MessageBox.ShowInfo($@"
+                                    found enclosing for
+                                    Offset: {offset}
+                                    Name: {name}
+                                    ");
+            }
+            else if (current is LambdaExpression lambda)
+            {
+                var range = lambda.GetDocumentRange().TextRange;
+                var lambdaParameters = lambda.LambdaDeclaratorNode.GetText();
+                var lambdaCapture = lambda.LambdaIntroducerNode.GetText();
+                var variableDecl = lambda.GetContainingNode<IDeclaration>();
+                var variableElement = variableDecl?.DeclaredElement;
+                var lambdaName = variableElement?.ShortName;
+                var lambdaBody = lambda.LambdaBodyNode.GetText();
+
+                var name = $"{lambdaCapture} {lambdaName} {lambdaParameters}";
+                var offset = range.StartOffset;
+                var statement = new StatementInfo(name, offset);
+                result.Add(statement);
+
+                MessageBox.ShowInfo($@"
+                                    found enclosing lambda
+                                    ShortName : {lambdaName}
+                                    Offset : {offset}
+                                    Parameters : {lambdaParameters}
+                                    Capture : {lambdaCapture}
+                                    Body : {lambdaBody}
+                                    ");
+            }
+
+            current = current.Parent;
+        }
 
         return result;
     }

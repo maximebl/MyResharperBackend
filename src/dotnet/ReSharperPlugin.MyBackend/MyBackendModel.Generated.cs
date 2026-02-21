@@ -42,14 +42,14 @@ namespace JetBrains.Rider.Model
   {
     //fields
     //public fields
-    [NotNull] public IRdEndpoint<MyFindRequest, string[]> GetFunctionNames => _GetFunctionNames;
+    [NotNull] public IRdEndpoint<MyFindRequest, StatementInfo[]> GetFunctionNames => _GetFunctionNames;
     
     //private fields
-    [NotNull] private readonly RdCall<MyFindRequest, string[]> _GetFunctionNames;
+    [NotNull] private readonly RdCall<MyFindRequest, StatementInfo[]> _GetFunctionNames;
     
     //primary constructor
     private MyBackendModel(
-      [NotNull] RdCall<MyFindRequest, string[]> getFunctionNames
+      [NotNull] RdCall<MyFindRequest, StatementInfo[]> getFunctionNames
     )
     {
       if (getFunctionNames == null) throw new ArgumentNullException("getFunctionNames");
@@ -60,16 +60,16 @@ namespace JetBrains.Rider.Model
     //secondary constructor
     internal MyBackendModel (
     ) : this (
-      new RdCall<MyFindRequest, string[]>(MyFindRequest.Read, MyFindRequest.Write, ReadStringArray, WriteStringArray)
+      new RdCall<MyFindRequest, StatementInfo[]>(MyFindRequest.Read, MyFindRequest.Write, ReadStatementInfoArray, WriteStatementInfoArray)
     ) {}
     //deconstruct trait
     //statics
     
-    public static CtxReadDelegate<string[]> ReadStringArray = JetBrains.Rd.Impl.Serializers.ReadString.Array();
+    public static CtxReadDelegate<StatementInfo[]> ReadStatementInfoArray = StatementInfo.Read.Array();
     
-    public static  CtxWriteDelegate<string[]> WriteStringArray = JetBrains.Rd.Impl.Serializers.WriteString.Array();
+    public static  CtxWriteDelegate<StatementInfo[]> WriteStatementInfoArray = StatementInfo.Write.Array();
     
-    protected override long SerializationHash => 345117295757149051L;
+    protected override long SerializationHash => 4223364129162007567L;
     
     protected override Action<ISerializers> Register => RegisterDeclaredTypesSerializers;
     public static void RegisterDeclaredTypesSerializers(ISerializers serializers)
@@ -191,6 +191,99 @@ namespace JetBrains.Rider.Model
       using (printer.IndentCookie()) {
         printer.Print("filePath = "); FilePath.PrintEx(printer); printer.Println();
         printer.Print("caretOffset = "); CaretOffset.PrintEx(printer); printer.Println();
+      }
+      printer.Print(")");
+    }
+    //toString
+    public override string ToString()
+    {
+      var printer = new SingleLinePrettyPrinter();
+      Print(printer);
+      return printer.ToString();
+    }
+  }
+  
+  
+  /// <summary>
+  /// <p>Generated from: MyBackendModel.kt:29</p>
+  /// </summary>
+  public sealed class StatementInfo : IPrintable, IEquatable<StatementInfo>
+  {
+    //fields
+    //public fields
+    [NotNull] public string Name {get; private set;}
+    public int Offset {get; private set;}
+    
+    //private fields
+    //primary constructor
+    public StatementInfo(
+      [NotNull] string name,
+      int offset
+    )
+    {
+      if (name == null) throw new ArgumentNullException("name");
+      
+      Name = name;
+      Offset = offset;
+    }
+    //secondary constructor
+    //deconstruct trait
+    public void Deconstruct([NotNull] out string name, out int offset)
+    {
+      name = Name;
+      offset = Offset;
+    }
+    //statics
+    
+    public static CtxReadDelegate<StatementInfo> Read = (ctx, reader) => 
+    {
+      var name = reader.ReadString();
+      var offset = reader.ReadInt();
+      var _result = new StatementInfo(name, offset);
+      return _result;
+    };
+    
+    public static CtxWriteDelegate<StatementInfo> Write = (ctx, writer, value) => 
+    {
+      writer.Write(value.Name);
+      writer.Write(value.Offset);
+    };
+    
+    //constants
+    
+    //custom body
+    //methods
+    //equals trait
+    public override bool Equals(object obj)
+    {
+      if (ReferenceEquals(null, obj)) return false;
+      if (ReferenceEquals(this, obj)) return true;
+      if (obj.GetType() != GetType()) return false;
+      return Equals((StatementInfo) obj);
+    }
+    public bool Equals(StatementInfo other)
+    {
+      if (ReferenceEquals(null, other)) return false;
+      if (ReferenceEquals(this, other)) return true;
+      return Name == other.Name && Offset == other.Offset;
+    }
+    //hash code trait
+    public override int GetHashCode()
+    {
+      unchecked {
+        var hash = 0;
+        hash = hash * 31 + Name.GetHashCode();
+        hash = hash * 31 + Offset.GetHashCode();
+        return hash;
+      }
+    }
+    //pretty print
+    public void Print(PrettyPrinter printer)
+    {
+      printer.Println("StatementInfo (");
+      using (printer.IndentCookie()) {
+        printer.Print("name = "); Name.PrintEx(printer); printer.Println();
+        printer.Print("offset = "); Offset.PrintEx(printer); printer.Println();
       }
       printer.Print(")");
     }

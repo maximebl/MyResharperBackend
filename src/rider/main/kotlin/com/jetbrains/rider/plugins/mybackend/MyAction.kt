@@ -21,30 +21,46 @@ class MyAction : AnAction() {
         val editor = e.getData(CommonDataKeys.EDITOR) ?: return
         val vfile = e.getData(CommonDataKeys.VIRTUAL_FILE) ?: return
 
-        // Call backend (request/response)
+        // Call backend (request/response).
         val request = MyFindRequest(vfile.path, editor.caretModel.offset)
         val task = model.getFunctionNames.start(project.lifetime, request)
 
-        // 3. Observe the result
+        // Observe the result.
         task.result.advise(project.lifetime) { result ->
-            val requestedString = result.unwrap()
-            val text = requestedString.joinToString("\n")
-            Messages.showMessageDialog(project, text, "Front end received string:", Messages.getInformationIcon())
+            val statementInfos = result.unwrap()
 
-            val targetPath = requestedString[0]
-            val targetOffset = requestedString[1].toInt()
-
-            val targetVirtualFile = LocalFileSystem.getInstance().findFileByPath(targetPath)
-            if (targetVirtualFile != null) {
-                // 2. Open the file and navigate to offset
-                // OpenFileDescriptor handles both opening the file (if closed) and navigating (if open)
-                OpenFileDescriptor(project, targetVirtualFile, targetOffset).navigate(true)
+            // Parse received statements.
+            val text = if (statementInfos.isEmpty()) {
+                "No statements found."
             } else {
-                Messages.showErrorDialog("Could not find file: $targetPath", "Navigation Error")
+                statementInfos.joinToString(
+                    separator = "\n"
+                ) { info ->
+                    "${info.offset}: ${info.name}"
+                }
             }
 
-            editor.caretModel.moveToOffset(targetOffset)
-            editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
+            Messages.showMessageDialog(
+                project,
+                text,
+                "Front end received string:",
+                Messages.getInformationIcon()
+            )
+
+//            val targetPath = statementInfos[0]
+//            val targetOffset = statementInfos[1]
+
+//            val targetVirtualFile = LocalFileSystem.getInstance().findFileByPath(targetPath)
+//            if (targetVirtualFile != null) {
+//                // 2. Open the file and navigate to offset
+//                // OpenFileDescriptor handles both opening the file (if closed) and navigating (if open)
+//                OpenFileDescriptor(project, targetVirtualFile, targetOffset).navigate(true)
+//            } else {
+//                Messages.showErrorDialog("Could not find file: $targetPath", "Navigation Error")
+//            }
+//
+//            editor.caretModel.moveToOffset(targetOffset)
+//            editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
         }
     }
 

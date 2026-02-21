@@ -19,16 +19,22 @@ object MyBackendModel : Ext(SolutionModel.Solution) {
         setting(Kotlin11Generator.Namespace, "com.jetbrains.rider.model")
     }
 
-    // Define the data structure for the request
+    // Input
     val MyFindRequest = structdef {
         field("filePath", PredefinedType.string)
         field("caretOffset", PredefinedType.int)
     }
 
+    // Output
+    val StatementInfo = structdef {
+        field("name", PredefinedType.string)
+        field("offset", PredefinedType.int)
+    }
+
     val getFunctionNames = call(
         "getFunctionNames",
         MyFindRequest,
-        array(PredefinedType.string)
+        array(StatementInfo)
     )
 }
 
