@@ -14,6 +14,8 @@
 
     <actions>
         <action id="com.jetbrains.rider.plugins.mybackend.MyAction"
-                class="com.jetbrains.rider.plugins.mybackend.MyAction" text="Hello MyBackend" description="first test"/>
+                class="com.jetbrains.rider.plugins.mybackend.MyAction" text="Hello MyBackend" description="first test">
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt I"/>
+        </action>
     </actions>
 </idea-plugin>

@@ -39,13 +39,15 @@ using JetBrains.ReSharper.Psi.Cpp.Types;
 using JetBrains.ReSharper.Psi.Resx.Utils;
 using JetBrains.ReSharper.TestRunner.Abstractions.Extensions;
 using IfStatementNavigator = JetBrains.ReSharper.Psi.Cpp.Tree.IfStatementNavigator;
+using JetBrains.Diagnostics;
+using JetBrains.ReSharper.Feature.Services.Cpp.Finder;
 
 namespace ReSharperPlugin.MyBackend;
 
 [SolutionComponent(Instantiation.ContainerAsyncAnyThreadSafe)]
 public class MyComponent
 {
-    public MyComponent(Lifetime lifetime, ISolution solution, BreadcrumbsProvider breadcrumbsProvider)
+    public MyComponent(Lifetime lifetime, ISolution solution)
     {
         var model = solution.GetProtocolSolution().GetMyBackendModel();
 
@@ -54,7 +56,6 @@ public class MyComponent
         {
             var collectedStatements = new List<StatementInfo>();
 
-            MessageBox.ShowInfo("Entering SetAsync");
             using (ReadLockCookie.Create())
             {
                 // Inputs:
@@ -84,6 +85,54 @@ public class MyComponent
                      Enclosing the caret
                      */
                     collectedStatements = WalkFunctionFromNode(nodeAtOffset);
+                    collectedStatements.Reverse();
+
+                    // Print information about the function enclosing the caret.
+                    ICppFunctionDeclaratorResolveEntity function = nodeAtOffset.GetEnclosingFunction();
+                    var declarator = function.TryGetDeclarator() as IDeclaration;
+
+                    if (declarator.DeclaredElement is ICppDeclaredElement cppElement)
+                    {
+                        // Enclosing function name.
+                        var name = cppElement.ShortName;
+                        var type = cppElement.GetElementType().PresentableName;
+                        
+                        // Enclosing function declaration.
+                        var firstFoundDeclaration = cppElement.GetSourceFiles().FirstOrDefault().GetLocation().FullPath;
+                        var declarationOffset = cppElement.GetDeclarations().FirstOrDefault().GetDocumentRange()
+                            .TextRange.StartOffset;
+                        
+                        // Log enclosing function usages.
+                        var usagesLog = new StringBuilder();
+                        int usageCount = 0;
+                        var consumer = new FindResultConsumer(result =>
+                        {
+                            if (result is FindResultReference refResult)
+                            {
+                                var usageRange = refResult.Reference.GetDocumentRange();
+                                var usageFile =
+                                    usageRange.Document.GetPsiSourceFile(solution)?.GetLocation().Name ??
+                                    "Unknown File";
+
+                                usagesLog.AppendLine(
+                                    $" - Used in {usageFile} at offset {usageRange.TextRange.StartOffset}");
+                                usageCount++;
+                            }
+
+                            return FindExecution.Continue;
+                        });
+                        finder.FindReferences(cppElement, searchDomain, consumer, NullProgressIndicator.Instance);
+
+                        MessageBox.ShowInfo($@"
+                                          Entity Name: {name}
+                                          Entity Type: {type}
+
+                                          Usages ({usageCount}):
+                                          {usagesLog}
+
+                                          Declaration: {firstFoundDeclaration} : {declarationOffset}
+                                          ");
+                    }
                 }
             }
 
@@ -106,7 +155,7 @@ public class MyComponent
                 var condition = cppIf.GetCondition();
                 var escapedCondition = WebUtility.HtmlEncode(condition.ToString());
                 var name = $"if ({escapedCondition})";
-                
+
                 // Detect if caret is inside the else-branch
                 var elseNode = ifStmt.ElseStatement;
                 if (elseNode != null)
@@ -121,14 +170,14 @@ public class MyComponent
                         offset = elseNode.GetTreeStartOffset().Offset;
                     }
                 }
-                
+
                 var statement = new StatementInfo(name, offset);
                 result.Add(statement);
-                MessageBox.ShowInfo($@"
-                                    found enclosing if
-                                    Offset: {offset}
-                                    Name: {name}
-                                    ");
+                // MessageBox.ShowInfo($@"
+                //                     found enclosing if
+                //                     Offset: {offset}
+                //                     Name: {name}
+                //                     ");
             }
             else if (current is ForStatement forStmt)
             {
@@ -139,11 +188,11 @@ public class MyComponent
                 var name = $"for ({escapedCondition})";
                 var statement = new StatementInfo(name, offset);
                 result.Add(statement);
-                MessageBox.ShowInfo($@"
-                                    found enclosing for
-                                    Offset: {offset}
-                                    Name: {name}
-                                    ");
+                // MessageBox.ShowInfo($@"
+                //                     found enclosing for
+                //                     Offset: {offset}
+                //                     Name: {name}
+                //                     ");
             }
             else if (current is LambdaExpression lambda)
             {
@@ -160,19 +209,39 @@ public class MyComponent
                 var statement = new StatementInfo(name, offset);
                 result.Add(statement);
 
-                MessageBox.ShowInfo($@"
-                                    found enclosing lambda
-                                    ShortName : {lambdaName}
-                                    Offset : {offset}
-                                    Parameters : {lambdaParameters}
-                                    Capture : {lambdaCapture}
-                                    Body : {lambdaBody}
-                                    ");
+                // MessageBox.ShowInfo($@"
+                //                     found enclosing lambda
+                //                     ShortName : {lambdaName}
+                //                     Offset : {offset}
+                //                     Parameters : {lambdaParameters}
+                //                     Capture : {lambdaCapture}
+                //                     Body : {lambdaBody}
+                //                     ");
             }
 
             current = current.Parent;
         }
 
         return result;
+    }
+
+    void DumpNodeInfo(ITreeNode node, string tag = "")
+    {
+        if (node == null)
+        {
+            MessageBox.ShowInfo($"[{tag}] Node is null");
+            return;
+        }
+
+        var type = node.GetType();
+        var nodeType = node.NodeType;
+
+        MessageBox.ShowInfo(
+            $"[{tag}]\n" +
+            $"CLR type: {type.FullName}\n" +
+            $"PSI nodeType: {nodeType}\n" +
+            $"Language: {node.Language}\n" +
+            $"Text: '{node.GetText()}'"
+        );
     }
 }

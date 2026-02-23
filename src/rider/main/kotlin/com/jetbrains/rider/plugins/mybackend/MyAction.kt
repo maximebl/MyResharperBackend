@@ -4,13 +4,11 @@ package com.jetbrains.rider.plugins.mybackend
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.editor.ScrollType
-import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.rd.util.lifetime
-import com.intellij.openapi.ui.Messages
-import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.util.TextRange
 import com.jetbrains.rider.model.MyFindRequest
-import com.jetbrains.rider.model.myBackendModel // Ensure this import resolves
+import com.jetbrains.rider.model.myBackendModel
 import com.jetbrains.rider.projectView.solution
 
 class MyAction : AnAction() {
@@ -25,27 +23,21 @@ class MyAction : AnAction() {
         val request = MyFindRequest(vfile.path, editor.caretModel.offset)
         val task = model.getFunctionNames.start(project.lifetime, request)
 
-        // Observe the result.
+        // Capture the current line text before the async callback.
+        val lineNumber = editor.caretModel.logicalPosition.line
+        val caretLineText = editor.document.getText(
+            TextRange(
+                editor.document.getLineStartOffset(lineNumber),
+                editor.document.getLineEndOffset(lineNumber)
+            )
+        ).trim()
+
+        // Parse received statements.
         task.result.advise(project.lifetime) { result ->
             val statementInfos = result.unwrap()
-
-            // Parse received statements.
-            val text = if (statementInfos.isEmpty()) {
-                "No statements found."
-            } else {
-                statementInfos.joinToString(
-                    separator = "\n"
-                ) { info ->
-                    "${info.offset}: ${info.name}"
-                }
+            ApplicationManager.getApplication().invokeLater {
+                StatementPathTreeDialog(project, statementInfos, vfile.fileType, caretLineText).show()
             }
-
-            Messages.showMessageDialog(
-                project,
-                text,
-                "Front end received string:",
-                Messages.getInformationIcon()
-            )
 
 //            val targetPath = statementInfos[0]
 //            val targetOffset = statementInfos[1]
