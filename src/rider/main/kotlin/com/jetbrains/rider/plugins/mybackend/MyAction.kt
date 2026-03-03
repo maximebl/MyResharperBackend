@@ -8,6 +8,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.rd.util.lifetime
 import com.intellij.openapi.util.TextRange
 import com.jetbrains.rider.model.MyFindRequest
+import com.jetbrains.rider.model.WalkedResult
 import com.jetbrains.rider.model.myBackendModel
 import com.jetbrains.rider.projectView.solution
 
@@ -34,9 +35,9 @@ class MyAction : AnAction() {
 
         // Parse received statements.
         task.result.advise(project.lifetime) { result ->
-            val statementInfos = result.unwrap()
+            val walkedResult: WalkedResult = result.unwrap()
             ApplicationManager.getApplication().invokeLater {
-                StatementPathTreeDialog(project, statementInfos, vfile.fileType, caretLineText).show()
+                StatementPathTreeDialog(project, walkedResult, vfile.fileType, caretLineText).show()
             }
 
 //            val targetPath = statementInfos[0]

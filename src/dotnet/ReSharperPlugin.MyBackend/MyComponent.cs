@@ -40,7 +40,9 @@ using JetBrains.ReSharper.Psi.Resx.Utils;
 using JetBrains.ReSharper.TestRunner.Abstractions.Extensions;
 using IfStatementNavigator = JetBrains.ReSharper.Psi.Cpp.Tree.IfStatementNavigator;
 using JetBrains.Diagnostics;
+using JetBrains.Rd.Util;
 using JetBrains.ReSharper.Feature.Services.Cpp.Finder;
+using JetBrains.ReSharper.Feature.Services.Cpp.UE4;
 
 namespace ReSharperPlugin.MyBackend;
 
@@ -54,8 +56,6 @@ public class MyComponent
         // Handle a frontend "request": give me all function names in a file
         model.GetFunctionNames.SetAsync((lt, request) =>
         {
-            var collectedStatements = new List<StatementInfo>();
-
             using (ReadLockCookie.Create())
             {
                 // Inputs:
@@ -68,8 +68,23 @@ public class MyComponent
                     .OfType<IProjectFile>()
                     .FirstOrDefault();
                 var psiSourceFile = projectFile.ToSourceFile();
+                if (psiSourceFile == null)
+                {
+                    MessageBox.ShowInfo($@"
+                                        psiSourceFile is null
+                                        ");
+                }
+
                 var psiFile = psiSourceFile.GetPrimaryPsiFile();
-                var finder = solution.GetPsiServices().SingleThreadedFinder;
+
+                if (psiFile == null)
+                {
+                    MessageBox.ShowInfo($@"
+                                        psiFile is null
+                                        ");
+                }
+
+                var finder = solution.GetPsiServices().ParallelFinder;
                 var searchDomain = solution.GetPsiServices().SearchDomainFactory.CreateSearchDomain(solution, true);
 
                 if (psiFile is CppFile cppFile)
@@ -84,32 +99,78 @@ public class MyComponent
                          - lambda declarations
                      Enclosing the caret
                      */
-                    collectedStatements = WalkFunctionFromNode(nodeAtOffset);
-                    collectedStatements.Reverse();
+
+                    // Create a walked function:
+                    //      - Get info about the enclosing function at the caret.
+                    //          - Collect it's usage locations.
+                    //      - Walk the enclosed function to collect the statements.
+                    //      - Walk the usage locations.
+
+
+                    // var collectedStatements = new List<StatementInfo>();
+                    // collectedStatements = WalkFunctionFromNode(nodeAtOffset);
 
                     // Print information about the function enclosing the caret.
-                    ICppFunctionDeclaratorResolveEntity function = nodeAtOffset.GetEnclosingFunction();
-                    var declarator = function.TryGetDeclarator() as IDeclaration;
+                    ICppFunctionDeclaratorResolveEntity resolvedEnclosingFunction = nodeAtOffset.GetEnclosingFunction();
+                    var enclosingFuncDecl = resolvedEnclosingFunction.TryGetDeclarator() as IDeclaration;
 
-                    if (declarator.DeclaredElement is ICppDeclaredElement cppElement)
+                    MessageBox.ShowInfo($@"
+                                            resolved enclosing func: {enclosingFuncDecl.DeclaredName}
+                                            ");
+
+                    if (enclosingFuncDecl.DeclaredElement is ICppDeclaredElement enclosingFunctionCppElement)
                     {
+                        MessageBox.ShowInfo($@"
+                                            Found cpp element: {enclosingFunctionCppElement.ShortName}
+                                            ");
                         // Enclosing function name.
-                        var name = cppElement.ShortName;
-                        var type = cppElement.GetElementType().PresentableName;
-                        
+                        var name = enclosingFunctionCppElement.ShortName;
+                        var type = enclosingFunctionCppElement.GetElementType().PresentableName;
+
                         // Enclosing function declaration.
-                        var firstFoundDeclaration = cppElement.GetSourceFiles().FirstOrDefault().GetLocation().FullPath;
-                        var declarationOffset = cppElement.GetDeclarations().FirstOrDefault().GetDocumentRange()
+                        var currentFuncPath = enclosingFunctionCppElement.GetSourceFiles().FirstOrDefault()
+                            .GetLocation().FullPath;
+                        var currentFuncOffset = enclosingFunctionCppElement.GetDeclarations().FirstOrDefault()
+                            .GetDocumentRange()
                             .TextRange.StartOffset;
-                        
+
+                        var currentFunc = new WalkedFunction(enclosingFunctionCppElement.ShortName,
+                            enclosingFunctionCppElement.GetSourceFiles().FirstOrDefault().GetLocation().FullPath,
+                            currentFuncOffset,
+                            WalkFunctionFromNode(nodeAtOffset)
+                        );
+
+                        var seed = new DeclaredElementInstance(enclosingFunctionCppElement);
+                        ICollection<DeclaredElementInstance> relatedInstances =
+                            CppDeclaredElementUtil.FindBaseAndOverridingDeclaredElements(
+                                new List<DeclaredElementInstance> {seed});
+                        MessageBox.ShowInfo($@"
+
+                                            relatedInstances.Count: {relatedInstances.Count}
+
+                                            ");
+                        var targets = relatedInstances.Select(i => i.Element).ToList();
+
+                        foreach (var declaredElement in targets)
+                        {
+                            MessageBox.ShowInfo($@"
+
+                                            target declared element: {declaredElement.ShortName}
+                                            ");
+                        }
+
                         // Log enclosing function usages.
                         var usagesLog = new StringBuilder();
                         int usageCount = 0;
+                        List<int> offsetsToWalk = new List<int>();
+
                         var consumer = new FindResultConsumer(result =>
                         {
-                            if (result is FindResultReference refResult)
+                            if (result is IFindResultReference refResult)
                             {
-                                var usageRange = refResult.Reference.GetDocumentRange();
+                                DocumentRange usageRange = refResult.Reference.GetDocumentRange();
+                                offsetsToWalk.Add(usageRange.TextRange.StartOffset);
+
                                 var usageFile =
                                     usageRange.Document.GetPsiSourceFile(solution)?.GetLocation().Name ??
                                     "Unknown File";
@@ -121,22 +182,124 @@ public class MyComponent
 
                             return FindExecution.Continue;
                         });
-                        finder.FindReferences(cppElement, searchDomain, consumer, NullProgressIndicator.Instance);
+                        finder.FindReferences(enclosingFunctionCppElement, searchDomain, consumer, NullProgressIndicator.Instance);
+                        // finder.FindReferences(targets, searchDomain, consumer, NullProgressIndicator.Instance);
 
                         MessageBox.ShowInfo($@"
-                                          Entity Name: {name}
-                                          Entity Type: {type}
+                                            Entity Name: {name}
+                                            Entity Type: {type}
 
-                                          Usages ({usageCount}):
-                                          {usagesLog}
+                                            Usages ({usageCount}):
+                                            {usagesLog}
 
-                                          Declaration: {firstFoundDeclaration} : {declarationOffset}
-                                          ");
+                                            Declaration: {currentFuncPath} : {currentFuncOffset}
+
+                                            Num offsets to walk: {offsetsToWalk.Count}
+                                            ");
+
+                        var usageFuncs = new List<WalkedFunction>();
+                        foreach (var offset in offsetsToWalk)
+                        {
+                            MessageBox.ShowInfo($@"
+                                                Looping: {offset}
+                                                Document: {psiSourceFile.Document.GetText()}
+                                                ");
+
+                            var docOffset = new DocumentOffset(psiSourceFile.Document, offset);
+                            MessageBox.ShowInfo($@"
+                                                docOffset: {docOffset}
+                                                ");
+                            var nodeToWalk = cppFile.FindNodeAt(docOffset);
+                            if (nodeToWalk == null)
+                            {
+                                MessageBox.ShowInfo($@"
+                                                nodeToWalk is null
+                                                ");
+                            }
+
+                            MessageBox.ShowInfo($@"
+                                                nodeToWalk: {nodeToWalk.GetText()}
+                                                ");
+
+                            var enclosingFunction = nodeToWalk.GetEnclosingFunction();
+                            var funcDeclarator = enclosingFunction.TryGetDeclarator() as IDeclaration;
+
+                            MessageBox.ShowInfo($@"
+                                                docOffset: {docOffset}
+                                                nodeToWalk: {nodeToWalk}
+
+                                                {nodeToWalk.GetType().FullName}
+                                                {nodeToWalk.NodeType}
+                                                {nodeToWalk.Language}
+                                                {nodeToWalk.GetText()}
+                                                {funcDeclarator.GetType().FullName}
+                                                {funcDeclarator.NodeType}
+                                                {funcDeclarator.Language}
+                                                {funcDeclarator.GetText()}
+                                                ");
+
+                            string usageFunctionName = "<name not found>";
+                            string usageFunctionPath = "<path not found>";
+                            if (funcDeclarator is {DeclaredElement: ICppDeclaredElement cppFuncElement})
+                            {
+                                MessageBox.ShowInfo($@"Walking: {offset}
+                                                       funcDeclarator is ICppDeclaredElement.
+                                                        usageFunctionName: {usageFunctionName}
+                                                    ");
+
+                                usageFunctionName = cppFuncElement.ShortName;
+                                usageFunctionPath = cppFuncElement.GetSourceFiles().FirstOrDefault().GetLocation()
+                                    .FullPath;
+                            }
+                            else if (nodeToWalk.GetContainingNode<LambdaExpression>() is { } lambda)
+                            {
+                                // Enclosing function is a lambda.
+                                var range = lambda.GetDocumentRange().TextRange;
+                                var lambdaOffset = range.StartOffset;
+                                var lambdaParameters = lambda.LambdaDeclaratorNode.GetText();
+                                var lambdaCapture = lambda.LambdaIntroducerNode.GetText();
+                                var variableDecl = lambda.GetContainingNode<IDeclaration>();
+                                var variableElement = variableDecl?.DeclaredElement;
+                                var lambdaName = variableElement?.ShortName;
+                                var lambdaBody = lambda.LambdaBodyNode.GetText();
+
+                                usageFunctionName = $"{lambdaCapture} {lambdaName} {lambdaParameters}";
+                                usageFunctionPath = lambda.GetLocation().FilePath;
+
+                                MessageBox.ShowInfo($@"Walking: {offset}
+                                                       funcDeclarator is a lambda.
+                                                       usageFunctionName: {usageFunctionName}
+                                                    ");
+                            }
+
+                            MessageBox.ShowInfo($@"
+                                                Creating a new WalkedFunction
+                                                ");
+
+                            var func = new WalkedFunction(
+                                $"{usageFunctionName}",
+                                $"{usageFunctionPath}",
+                                offset,
+                                WalkFunctionFromNode(nodeToWalk)
+                            );
+
+                            MessageBox.ShowInfo($@"
+                                            Adding usage func:
+                                            {func.Name}
+                                            {func.Path}
+                                            {func.Offset}
+                                            {func.Statements.Count}
+                                           ");
+                            usageFuncs.Add(func);
+                        }
+
+                        var walkedResult = new WalkedResult(currentFunc, usageFuncs);
+                        return Task.FromResult(walkedResult);
                     }
                 }
             }
 
-            return Task.FromResult(collectedStatements.ToArray());
+            return Task.FromResult<WalkedResult>(null);
         });
     }
 
@@ -153,7 +316,7 @@ public class MyComponent
                 var cppIf = ifStmt.GetIfStatementResolveEntity();
                 var offset = cppIf.GetTextOffset();
                 var condition = cppIf.GetCondition();
-                var escapedCondition = WebUtility.HtmlEncode(condition.ToString());
+                var escapedCondition = condition.ToString();
                 var name = $"if ({escapedCondition})";
 
                 // Detect if caret is inside the else-branch
@@ -184,7 +347,7 @@ public class MyComponent
                 var cppFor = forStmt.GetResolveEntity();
                 var offset = cppFor.GetTextOffset();
                 var condition = cppFor.GetCondition();
-                var escapedCondition = WebUtility.HtmlEncode(condition.ToString());
+                var escapedCondition = condition.ToString();
                 var name = $"for ({escapedCondition})";
                 var statement = new StatementInfo(name, offset);
                 result.Add(statement);
@@ -222,6 +385,7 @@ public class MyComponent
             current = current.Parent;
         }
 
+        result.Reverse();
         return result;
     }
 

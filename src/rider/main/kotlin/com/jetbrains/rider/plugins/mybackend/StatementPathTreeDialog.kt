@@ -6,41 +6,64 @@ import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
-import com.intellij.ui.ColoredTreeCellRenderer
+import com.intellij.ui.SimpleColoredComponent
 import com.intellij.ui.SimpleTextAttributes
+import com.intellij.util.ui.UIUtil
+import java.awt.Component
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.Tree
 import com.jetbrains.rider.model.StatementInfo
+import com.jetbrains.rider.model.WalkedFunction
+import com.jetbrains.rider.model.WalkedResult
 import java.awt.Dimension
+import java.awt.Font
 import javax.swing.Action
 import javax.swing.JComponent
 import javax.swing.JTree
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
+import javax.swing.tree.TreeCellRenderer
 
 class StatementPathTreeDialog(
     private val project: Project,
-    private val statementInfos: Array<StatementInfo>,
+    private val walkedResult: WalkedResult,
     private val fileType: FileType,
     private val caretLineText: String
 ) : DialogWrapper(project, true) {
 
     init {
         isModal = false
-        title = "Statement Path"
+        title = "Statement Path — ${walkedResult.current.name}"
         init()
     }
 
     override fun createCenterPanel(): JComponent {
         val root = DefaultMutableTreeNode()
 
-        var parent = root
-        for (info in statementInfos) {
+        // Section: path to caret
+        val pathHeader = DefaultMutableTreeNode(SectionHeader("Path to caret"))
+        root.add(pathHeader)
+        var parent: DefaultMutableTreeNode = pathHeader
+        for (info in walkedResult.current.statements) {
             val node = DefaultMutableTreeNode(info)
             parent.add(node)
             parent = node
         }
         parent.add(DefaultMutableTreeNode(null)) // caret leaf
+
+        // Section: usages
+        val usagesHeader = DefaultMutableTreeNode(SectionHeader("Usages (${walkedResult.usages.size})"))
+        root.add(usagesHeader)
+        for (usage in walkedResult.usages) {
+            val usageNode = DefaultMutableTreeNode(usage)
+            usagesHeader.add(usageNode)
+            var usageParent = usageNode
+            for (stmt in usage.statements) {
+                val stmtNode = DefaultMutableTreeNode(stmt)
+                usageParent.add(stmtNode)
+                usageParent = stmtNode
+            }
+        }
 
         val tree = Tree(DefaultTreeModel(root))
         tree.isRootVisible = false
@@ -54,7 +77,7 @@ class StatementPathTreeDialog(
         }
 
         val panel = JBScrollPane(tree)
-        panel.preferredSize = Dimension(420, 300)
+        panel.preferredSize = Dimension(500, 400)
         return panel
     }
 
@@ -66,29 +89,53 @@ class StatementPathTreeDialog(
     }
 }
 
+private data class SectionHeader(val text: String)
+
 private class StatementCellRenderer(
     private val fileType: FileType,
     private val caretLineText: String
-) : ColoredTreeCellRenderer() {
+) : SimpleColoredComponent(), TreeCellRenderer {
 
-    override fun customizeCellRenderer(
-        tree: JTree, value: Any, selected: Boolean,
+    override fun getTreeCellRendererComponent(
+        tree: JTree, value: Any?, selected: Boolean,
         expanded: Boolean, leaf: Boolean, row: Int, hasFocus: Boolean
-    ) {
-        val node = value as? DefaultMutableTreeNode ?: return
+    ): Component {
+        // Start with a clean slate — no HTML mode, no leftover text or icons.
+        clear()
 
-        when (val info = node.userObject) {
+        isOpaque = selected
+        if (selected) background = UIUtil.getTreeSelectionBackground(hasFocus)
+
+        val uiFont = tree.font
+        val scheme = EditorColorsManager.getInstance().globalScheme
+        val codeFont = Font(scheme.editorFontName, Font.PLAIN, scheme.editorFontSize)
+
+        val node = value as? DefaultMutableTreeNode ?: return this
+        when (val obj = node.userObject) {
+            is SectionHeader -> {
+                font = uiFont
+                icon = AllIcons.Nodes.Folder
+                append(obj.text, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES)
+            }
+            is WalkedFunction -> {
+                font = codeFont
+                icon = AllIcons.Nodes.Function
+                appendHighlighted(obj.name, fileType)
+                append("  ${obj.path}:${obj.offset}", SimpleTextAttributes.GRAYED_ATTRIBUTES)
+            }
             is StatementInfo -> {
+                font = codeFont
                 icon = AllIcons.Nodes.Method
-                append(info.name, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES)
-                append("  offset: ${info.offset}", SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES)
+                appendHighlighted(obj.name, fileType)
+                append("  offset: ${obj.offset}", SimpleTextAttributes.GRAYED_ATTRIBUTES)
             }
             null -> {
-                // Caret leaf: tokenize the line and render each token with its highlight color.
+                font = codeFont
                 icon = AllIcons.General.ArrowRight
                 appendHighlighted(caretLineText, fileType)
             }
         }
+        return this
     }
 
     private fun appendHighlighted(code: String, fileType: FileType) {
@@ -110,7 +157,7 @@ private class StatementCellRenderer(
 
             append(
                 tokenText,
-                if (attrs != null) SimpleTextAttributes.fromTextAttributes(attrs)
+                if (attrs != null) SimpleTextAttributes(attrs.fontType, attrs.foregroundColor)
                 else SimpleTextAttributes.REGULAR_ATTRIBUTES
             )
             lexer.advance()

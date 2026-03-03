@@ -19,7 +19,7 @@ import kotlin.jvm.JvmStatic
  * #### Generated from [MyBackendModel.kt:16]
  */
 class MyBackendModel private constructor(
-    private val _getFunctionNames: RdCall<MyFindRequest, Array<StatementInfo>>
+    private val _getFunctionNames: RdCall<MyFindRequest, WalkedResult>
 ) : RdExtBase() {
     //companion
     
@@ -29,21 +29,22 @@ class MyBackendModel private constructor(
             val classLoader = javaClass.classLoader
             serializers.register(LazyCompanionMarshaller(RdId(-7237491644472025097), classLoader, "com.jetbrains.rider.model.MyFindRequest"))
             serializers.register(LazyCompanionMarshaller(RdId(-2616143937914611350), classLoader, "com.jetbrains.rider.model.StatementInfo"))
+            serializers.register(LazyCompanionMarshaller(RdId(1876238290876968723), classLoader, "com.jetbrains.rider.model.WalkedFunction"))
+            serializers.register(LazyCompanionMarshaller(RdId(-1188160139399588328), classLoader, "com.jetbrains.rider.model.WalkedResult"))
         }
         
         
         
         
-        private val __StatementInfoArraySerializer = StatementInfo.array()
         
-        const val serializationHash = 4223364129162007567L
+        const val serializationHash = -7067078345171135611L
         
     }
     override val serializersOwner: ISerializersOwner get() = MyBackendModel
     override val serializationHash: Long get() = MyBackendModel.serializationHash
     
     //fields
-    val getFunctionNames: IRdCall<MyFindRequest, Array<StatementInfo>> get() = _getFunctionNames
+    val getFunctionNames: IRdCall<MyFindRequest, WalkedResult> get() = _getFunctionNames
     //methods
     //initializer
     init {
@@ -53,7 +54,7 @@ class MyBackendModel private constructor(
     //secondary constructor
     internal constructor(
     ) : this(
-        RdCall<MyFindRequest, Array<StatementInfo>>(MyFindRequest, __StatementInfoArraySerializer)
+        RdCall<MyFindRequest, WalkedResult>(MyFindRequest, WalkedResult)
     )
     
     //equals trait
@@ -201,6 +202,148 @@ data class StatementInfo (
         printer.indent {
             print("name = "); name.print(printer); println()
             print("offset = "); offset.print(printer); println()
+        }
+        printer.print(")")
+    }
+    //deepClone
+    //contexts
+    //threading
+}
+
+
+/**
+ * #### Generated from [MyBackendModel.kt:34]
+ */
+data class WalkedFunction (
+    val name: String,
+    val path: String,
+    val offset: Int,
+    val statements: List<StatementInfo>
+) : IPrintable {
+    //companion
+    
+    companion object : IMarshaller<WalkedFunction> {
+        override val _type: KClass<WalkedFunction> = WalkedFunction::class
+        override val id: RdId get() = RdId(1876238290876968723)
+        
+        @Suppress("UNCHECKED_CAST")
+        override fun read(ctx: SerializationCtx, buffer: AbstractBuffer): WalkedFunction  {
+            val name = buffer.readString()
+            val path = buffer.readString()
+            val offset = buffer.readInt()
+            val statements = buffer.readList { StatementInfo.read(ctx, buffer) }
+            return WalkedFunction(name, path, offset, statements)
+        }
+        
+        override fun write(ctx: SerializationCtx, buffer: AbstractBuffer, value: WalkedFunction)  {
+            buffer.writeString(value.name)
+            buffer.writeString(value.path)
+            buffer.writeInt(value.offset)
+            buffer.writeList(value.statements) { v -> StatementInfo.write(ctx, buffer, v) }
+        }
+        
+        
+    }
+    //fields
+    //methods
+    //initializer
+    //secondary constructor
+    //equals trait
+    override fun equals(other: Any?): Boolean  {
+        if (this === other) return true
+        if (other == null || other::class != this::class) return false
+        
+        other as WalkedFunction
+        
+        if (name != other.name) return false
+        if (path != other.path) return false
+        if (offset != other.offset) return false
+        if (statements != other.statements) return false
+        
+        return true
+    }
+    //hash code trait
+    override fun hashCode(): Int  {
+        var __r = 0
+        __r = __r*31 + name.hashCode()
+        __r = __r*31 + path.hashCode()
+        __r = __r*31 + offset.hashCode()
+        __r = __r*31 + statements.hashCode()
+        return __r
+    }
+    //pretty print
+    override fun print(printer: PrettyPrinter)  {
+        printer.println("WalkedFunction (")
+        printer.indent {
+            print("name = "); name.print(printer); println()
+            print("path = "); path.print(printer); println()
+            print("offset = "); offset.print(printer); println()
+            print("statements = "); statements.print(printer); println()
+        }
+        printer.print(")")
+    }
+    //deepClone
+    //contexts
+    //threading
+}
+
+
+/**
+ * #### Generated from [MyBackendModel.kt:41]
+ */
+data class WalkedResult (
+    val current: WalkedFunction,
+    val usages: List<WalkedFunction>
+) : IPrintable {
+    //companion
+    
+    companion object : IMarshaller<WalkedResult> {
+        override val _type: KClass<WalkedResult> = WalkedResult::class
+        override val id: RdId get() = RdId(-1188160139399588328)
+        
+        @Suppress("UNCHECKED_CAST")
+        override fun read(ctx: SerializationCtx, buffer: AbstractBuffer): WalkedResult  {
+            val current = WalkedFunction.read(ctx, buffer)
+            val usages = buffer.readList { WalkedFunction.read(ctx, buffer) }
+            return WalkedResult(current, usages)
+        }
+        
+        override fun write(ctx: SerializationCtx, buffer: AbstractBuffer, value: WalkedResult)  {
+            WalkedFunction.write(ctx, buffer, value.current)
+            buffer.writeList(value.usages) { v -> WalkedFunction.write(ctx, buffer, v) }
+        }
+        
+        
+    }
+    //fields
+    //methods
+    //initializer
+    //secondary constructor
+    //equals trait
+    override fun equals(other: Any?): Boolean  {
+        if (this === other) return true
+        if (other == null || other::class != this::class) return false
+        
+        other as WalkedResult
+        
+        if (current != other.current) return false
+        if (usages != other.usages) return false
+        
+        return true
+    }
+    //hash code trait
+    override fun hashCode(): Int  {
+        var __r = 0
+        __r = __r*31 + current.hashCode()
+        __r = __r*31 + usages.hashCode()
+        return __r
+    }
+    //pretty print
+    override fun print(printer: PrettyPrinter)  {
+        printer.println("WalkedResult (")
+        printer.indent {
+            print("current = "); current.print(printer); println()
+            print("usages = "); usages.print(printer); println()
         }
         printer.print(")")
     }

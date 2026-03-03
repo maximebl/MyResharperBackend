@@ -42,14 +42,14 @@ namespace JetBrains.Rider.Model
   {
     //fields
     //public fields
-    [NotNull] public IRdEndpoint<MyFindRequest, StatementInfo[]> GetFunctionNames => _GetFunctionNames;
+    [NotNull] public IRdEndpoint<MyFindRequest, WalkedResult> GetFunctionNames => _GetFunctionNames;
     
     //private fields
-    [NotNull] private readonly RdCall<MyFindRequest, StatementInfo[]> _GetFunctionNames;
+    [NotNull] private readonly RdCall<MyFindRequest, WalkedResult> _GetFunctionNames;
     
     //primary constructor
     private MyBackendModel(
-      [NotNull] RdCall<MyFindRequest, StatementInfo[]> getFunctionNames
+      [NotNull] RdCall<MyFindRequest, WalkedResult> getFunctionNames
     )
     {
       if (getFunctionNames == null) throw new ArgumentNullException("getFunctionNames");
@@ -60,16 +60,14 @@ namespace JetBrains.Rider.Model
     //secondary constructor
     internal MyBackendModel (
     ) : this (
-      new RdCall<MyFindRequest, StatementInfo[]>(MyFindRequest.Read, MyFindRequest.Write, ReadStatementInfoArray, WriteStatementInfoArray)
+      new RdCall<MyFindRequest, WalkedResult>(MyFindRequest.Read, MyFindRequest.Write, WalkedResult.Read, WalkedResult.Write)
     ) {}
     //deconstruct trait
     //statics
     
-    public static CtxReadDelegate<StatementInfo[]> ReadStatementInfoArray = StatementInfo.Read.Array();
     
-    public static  CtxWriteDelegate<StatementInfo[]> WriteStatementInfoArray = StatementInfo.Write.Array();
     
-    protected override long SerializationHash => 4223364129162007567L;
+    protected override long SerializationHash => -7067078345171135611L;
     
     protected override Action<ISerializers> Register => RegisterDeclaredTypesSerializers;
     public static void RegisterDeclaredTypesSerializers(ISerializers serializers)
@@ -284,6 +282,215 @@ namespace JetBrains.Rider.Model
       using (printer.IndentCookie()) {
         printer.Print("name = "); Name.PrintEx(printer); printer.Println();
         printer.Print("offset = "); Offset.PrintEx(printer); printer.Println();
+      }
+      printer.Print(")");
+    }
+    //toString
+    public override string ToString()
+    {
+      var printer = new SingleLinePrettyPrinter();
+      Print(printer);
+      return printer.ToString();
+    }
+  }
+  
+  
+  /// <summary>
+  /// <p>Generated from: MyBackendModel.kt:34</p>
+  /// </summary>
+  public sealed class WalkedFunction : IPrintable, IEquatable<WalkedFunction>
+  {
+    //fields
+    //public fields
+    [NotNull] public string Name {get; private set;}
+    [NotNull] public string Path {get; private set;}
+    public int Offset {get; private set;}
+    [NotNull] public List<StatementInfo> Statements {get; private set;}
+    
+    //private fields
+    //primary constructor
+    public WalkedFunction(
+      [NotNull] string name,
+      [NotNull] string path,
+      int offset,
+      [NotNull] List<StatementInfo> statements
+    )
+    {
+      if (name == null) throw new ArgumentNullException("name");
+      if (path == null) throw new ArgumentNullException("path");
+      if (statements == null) throw new ArgumentNullException("statements");
+      
+      Name = name;
+      Path = path;
+      Offset = offset;
+      Statements = statements;
+    }
+    //secondary constructor
+    //deconstruct trait
+    public void Deconstruct([NotNull] out string name, [NotNull] out string path, out int offset, [NotNull] out List<StatementInfo> statements)
+    {
+      name = Name;
+      path = Path;
+      offset = Offset;
+      statements = Statements;
+    }
+    //statics
+    
+    public static CtxReadDelegate<WalkedFunction> Read = (ctx, reader) => 
+    {
+      var name = reader.ReadString();
+      var path = reader.ReadString();
+      var offset = reader.ReadInt();
+      var statements = ReadStatementInfoList(ctx, reader);
+      var _result = new WalkedFunction(name, path, offset, statements);
+      return _result;
+    };
+    public static CtxReadDelegate<List<StatementInfo>> ReadStatementInfoList = StatementInfo.Read.List();
+    
+    public static CtxWriteDelegate<WalkedFunction> Write = (ctx, writer, value) => 
+    {
+      writer.Write(value.Name);
+      writer.Write(value.Path);
+      writer.Write(value.Offset);
+      WriteStatementInfoList(ctx, writer, value.Statements);
+    };
+    public static  CtxWriteDelegate<List<StatementInfo>> WriteStatementInfoList = StatementInfo.Write.List();
+    
+    //constants
+    
+    //custom body
+    //methods
+    //equals trait
+    public override bool Equals(object obj)
+    {
+      if (ReferenceEquals(null, obj)) return false;
+      if (ReferenceEquals(this, obj)) return true;
+      if (obj.GetType() != GetType()) return false;
+      return Equals((WalkedFunction) obj);
+    }
+    public bool Equals(WalkedFunction other)
+    {
+      if (ReferenceEquals(null, other)) return false;
+      if (ReferenceEquals(this, other)) return true;
+      return Name == other.Name && Path == other.Path && Offset == other.Offset && Statements.SequenceEqual(other.Statements);
+    }
+    //hash code trait
+    public override int GetHashCode()
+    {
+      unchecked {
+        var hash = 0;
+        hash = hash * 31 + Name.GetHashCode();
+        hash = hash * 31 + Path.GetHashCode();
+        hash = hash * 31 + Offset.GetHashCode();
+        hash = hash * 31 + Statements.ContentHashCode();
+        return hash;
+      }
+    }
+    //pretty print
+    public void Print(PrettyPrinter printer)
+    {
+      printer.Println("WalkedFunction (");
+      using (printer.IndentCookie()) {
+        printer.Print("name = "); Name.PrintEx(printer); printer.Println();
+        printer.Print("path = "); Path.PrintEx(printer); printer.Println();
+        printer.Print("offset = "); Offset.PrintEx(printer); printer.Println();
+        printer.Print("statements = "); Statements.PrintEx(printer); printer.Println();
+      }
+      printer.Print(")");
+    }
+    //toString
+    public override string ToString()
+    {
+      var printer = new SingleLinePrettyPrinter();
+      Print(printer);
+      return printer.ToString();
+    }
+  }
+  
+  
+  /// <summary>
+  /// <p>Generated from: MyBackendModel.kt:41</p>
+  /// </summary>
+  public sealed class WalkedResult : IPrintable, IEquatable<WalkedResult>
+  {
+    //fields
+    //public fields
+    [NotNull] public WalkedFunction Current {get; private set;}
+    [NotNull] public List<WalkedFunction> Usages {get; private set;}
+    
+    //private fields
+    //primary constructor
+    public WalkedResult(
+      [NotNull] WalkedFunction current,
+      [NotNull] List<WalkedFunction> usages
+    )
+    {
+      if (current == null) throw new ArgumentNullException("current");
+      if (usages == null) throw new ArgumentNullException("usages");
+      
+      Current = current;
+      Usages = usages;
+    }
+    //secondary constructor
+    //deconstruct trait
+    public void Deconstruct([NotNull] out WalkedFunction current, [NotNull] out List<WalkedFunction> usages)
+    {
+      current = Current;
+      usages = Usages;
+    }
+    //statics
+    
+    public static CtxReadDelegate<WalkedResult> Read = (ctx, reader) => 
+    {
+      var current = WalkedFunction.Read(ctx, reader);
+      var usages = ReadWalkedFunctionList(ctx, reader);
+      var _result = new WalkedResult(current, usages);
+      return _result;
+    };
+    public static CtxReadDelegate<List<WalkedFunction>> ReadWalkedFunctionList = WalkedFunction.Read.List();
+    
+    public static CtxWriteDelegate<WalkedResult> Write = (ctx, writer, value) => 
+    {
+      WalkedFunction.Write(ctx, writer, value.Current);
+      WriteWalkedFunctionList(ctx, writer, value.Usages);
+    };
+    public static  CtxWriteDelegate<List<WalkedFunction>> WriteWalkedFunctionList = WalkedFunction.Write.List();
+    
+    //constants
+    
+    //custom body
+    //methods
+    //equals trait
+    public override bool Equals(object obj)
+    {
+      if (ReferenceEquals(null, obj)) return false;
+      if (ReferenceEquals(this, obj)) return true;
+      if (obj.GetType() != GetType()) return false;
+      return Equals((WalkedResult) obj);
+    }
+    public bool Equals(WalkedResult other)
+    {
+      if (ReferenceEquals(null, other)) return false;
+      if (ReferenceEquals(this, other)) return true;
+      return Equals(Current, other.Current) && Usages.SequenceEqual(other.Usages);
+    }
+    //hash code trait
+    public override int GetHashCode()
+    {
+      unchecked {
+        var hash = 0;
+        hash = hash * 31 + Current.GetHashCode();
+        hash = hash * 31 + Usages.ContentHashCode();
+        return hash;
+      }
+    }
+    //pretty print
+    public void Print(PrettyPrinter printer)
+    {
+      printer.Println("WalkedResult (");
+      using (printer.IndentCookie()) {
+        printer.Print("current = "); Current.PrintEx(printer); printer.Println();
+        printer.Print("usages = "); Usages.PrintEx(printer); printer.Println();
       }
       printer.Print(")");
     }

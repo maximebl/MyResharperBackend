@@ -31,10 +31,22 @@ object MyBackendModel : Ext(SolutionModel.Solution) {
         field("offset", PredefinedType.int)
     }
 
+    val WalkedFunction = structdef {
+        field("name", PredefinedType.string)
+        field("path", PredefinedType.string)
+        field("offset", PredefinedType.int)
+        field("statements", immutableList(StatementInfo))
+    }
+
+    val WalkedResult = structdef {
+        field("current", WalkedFunction)
+        field("usages", immutableList(WalkedFunction))
+    }
+
     val getFunctionNames = call(
         "getFunctionNames",
         MyFindRequest,
-        array(StatementInfo)
+        WalkedResult
     )
 }
 
