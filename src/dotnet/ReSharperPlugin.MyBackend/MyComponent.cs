@@ -162,14 +162,14 @@ public class MyComponent
                         // Log enclosing function usages.
                         var usagesLog = new StringBuilder();
                         int usageCount = 0;
-                        List<int> offsetsToWalk = new List<int>();
+                        List<(IDocument Document, int Offset)> offsetsToWalk = new List<(IDocument Document, int Offset)>();
 
                         var consumer = new FindResultConsumer(result =>
                         {
                             if (result is IFindResultReference refResult)
                             {
                                 DocumentRange usageRange = refResult.Reference.GetDocumentRange();
-                                offsetsToWalk.Add(usageRange.TextRange.StartOffset);
+                                offsetsToWalk.Add((usageRange.Document, usageRange.TextRange.StartOffset));
 
                                 var usageFile =
                                     usageRange.Document.GetPsiSourceFile(solution)?.GetLocation().Name ??
@@ -182,8 +182,8 @@ public class MyComponent
 
                             return FindExecution.Continue;
                         });
-                        finder.FindReferences(enclosingFunctionCppElement, searchDomain, consumer, NullProgressIndicator.Instance);
-                        // finder.FindReferences(targets, searchDomain, consumer, NullProgressIndicator.Instance);
+                        // finder.FindReferences(enclosingFunctionCppElement, searchDomain, consumer, NullProgressIndicator.Instance);
+                        finder.FindReferences(targets, searchDomain, consumer, NullProgressIndicator.Instance);
 
                         MessageBox.ShowInfo($@"
                                             Entity Name: {name}
@@ -198,18 +198,20 @@ public class MyComponent
                                             ");
 
                         var usageFuncs = new List<WalkedFunction>();
-                        foreach (var offset in offsetsToWalk)
+                        foreach (var (usageDocument, offset) in offsetsToWalk)
                         {
                             MessageBox.ShowInfo($@"
                                                 Looping: {offset}
-                                                Document: {psiSourceFile.Document.GetText()}
+                                                Document: {usageDocument.GetText()}
                                                 ");
 
-                            var docOffset = new DocumentOffset(psiSourceFile.Document, offset);
+                            var docOffset = new DocumentOffset(usageDocument, offset);
                             MessageBox.ShowInfo($@"
                                                 docOffset: {docOffset}
                                                 ");
-                            var nodeToWalk = cppFile.FindNodeAt(docOffset);
+                            var usagePsiSourceFile = usageDocument.GetPsiSourceFile(solution);
+                            var usageCppFile = usagePsiSourceFile?.GetPrimaryPsiFile() as CppFile ?? cppFile;
+                            var nodeToWalk = usageCppFile.FindNodeAt(docOffset);
                             if (nodeToWalk == null)
                             {
                                 MessageBox.ShowInfo($@"
@@ -224,19 +226,19 @@ public class MyComponent
                             var enclosingFunction = nodeToWalk.GetEnclosingFunction();
                             var funcDeclarator = enclosingFunction.TryGetDeclarator() as IDeclaration;
 
-                            MessageBox.ShowInfo($@"
-                                                docOffset: {docOffset}
-                                                nodeToWalk: {nodeToWalk}
-
-                                                {nodeToWalk.GetType().FullName}
-                                                {nodeToWalk.NodeType}
-                                                {nodeToWalk.Language}
-                                                {nodeToWalk.GetText()}
-                                                {funcDeclarator.GetType().FullName}
-                                                {funcDeclarator.NodeType}
-                                                {funcDeclarator.Language}
-                                                {funcDeclarator.GetText()}
-                                                ");
+//                             MessageBox.ShowInfo($@"
+//                                                 docOffset: {docOffset}
+//                                                 nodeToWalk: {nodeToWalk}
+//
+//                                                 {nodeToWalk.GetType().FullName}
+//                                                 {nodeToWalk.NodeType}
+//                                                 {nodeToWalk.Language}
+//                                                 {nodeToWalk.GetText()}
+//                                                 {funcDeclarator.GetType().FullName}
+//                                                 {funcDeclarator.NodeType}
+//                                                 {funcDeclarator.Language}
+//                                                 {funcDeclarator.GetText()}
+//                                                 ");
 
                             string usageFunctionName = "<name not found>";
                             string usageFunctionPath = "<path not found>";
