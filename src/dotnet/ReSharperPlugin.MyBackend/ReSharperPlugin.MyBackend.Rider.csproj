@@ -9,6 +9,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Reference Include="PresentationFramework" />
+        <Reference Include="PresentationCore" />
+        <Reference Include="WindowsBase" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="JetBrains.ReSharper.CommandLineTools" Version="2025.2.5">
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

@@ -15,7 +15,9 @@
       "Bash(python3 -c \" import os, struct def find_in_dll\\(path, search\\): with open\\(path, ''rb''\\) as f: data = f.read\\(\\) # Search UTF-16 LE needle = search.encode\\(''utf-16-le''\\) results = [] idx = 0 while True: idx = data.find\\(needle, idx\\) if idx == -1: break # Grab surrounding context \\(as UTF-16\\) start = max\\(0, idx - 200\\) end = min\\(len\\(data\\), idx + len\\(needle\\) + 200\\) chunk = data[start:end] try: text = chunk.decode\\(''utf-16-le'', errors=''replace''\\) results.append\\(text\\) except: pass idx += len\\(needle\\) return results search = ''PsiFeaturesImplZone'' base = ''/c/Users/maxim/.nuget/packages/jetbrains.psi.features.core/233.0.20240606.112012/DotFiles'' for fname in os.listdir\\(base\\): if fname.endswith\\(''.dll''\\): path = os.path.join\\(base, fname\\) hits = find_in_dll\\(path, search\\) if hits: print\\(f''=== {fname} ===''\\) for h in hits: print\\(h[:300]\\) print\\(\\) \")",
       "Bash(python3:*)",
       "Bash(node --version:*)",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "Bash(xargs powershell:*)",
+      "Bash(xargs sh:*)"
     ]
   }
 }
