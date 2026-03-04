@@ -17,7 +17,9 @@ public static class LogWindow
     private static readonly SolidColorBrush DividerBrush   = Brush(0x3C, 0x3C, 0x3C);
     private static readonly FontFamily MonoFont = new FontFamily("Consolas, Courier New");
 
-    private static Window _window;
+    private static readonly SolidColorBrush ButtonFgBrush   = Brush(0xCC, 0xCC, 0xCC);
+
+private static Window _window;
     private static StackPanel _panel;
     private static ScrollViewer _scroll;
 
@@ -94,6 +96,24 @@ public static class LogWindow
     {
         if (_window != null) return;
 
+        var clearButton = new Button
+        {
+            Content = "Clear",
+            FontFamily = MonoFont,
+            FontSize = 12,
+            Foreground = ButtonFgBrush,
+            Background = DividerBrush,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(10, 4, 10, 4),
+            Margin = new Thickness(4),
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        clearButton.Click += (_, __) => _panel.Children.Clear();
+
+        var toolbar = new DockPanel { Background = DividerBrush };
+        DockPanel.SetDock(clearButton, Dock.Right);
+        toolbar.Children.Add(clearButton);
+
         _panel = new StackPanel { Background = BgBrush };
         _scroll = new ScrollViewer
         {
@@ -102,13 +122,19 @@ public static class LogWindow
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
         };
+
+        var root = new DockPanel { Background = BgBrush };
+        DockPanel.SetDock(toolbar, Dock.Bottom);
+        root.Children.Add(toolbar);
+        root.Children.Add(_scroll);
+
         _window = new Window
         {
             Title = "MyBackend Log",
             Width = 900,
             Height = 600,
             Background = BgBrush,
-            Content = _scroll,
+            Content = root,
         };
         _window.Closed += (_, __) =>
         {
