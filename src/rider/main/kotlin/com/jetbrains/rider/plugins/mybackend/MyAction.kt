@@ -23,6 +23,7 @@ class MyAction : AnAction() {
         // Call backend (request/response).
         val request = MyFindRequest(vfile.path, editor.caretModel.offset)
         val task = model.getFunctionNames.start(project.lifetime, request)
+        val usagesTask = model.getUsages.start(project.lifetime, request)
 
         // Capture the current line text before the async callback.
         val lineNumber = editor.caretModel.logicalPosition.line
@@ -33,27 +34,22 @@ class MyAction : AnAction() {
             )
         ).trim()
 
-        // Parse received statements.
+        var dialog: StatementPathTreeDialog? = null
+
+        // Open dialog as soon as the current function is ready (fast path).
         task.result.advise(project.lifetime) { result ->
             val walkedResult: WalkedResult = result.unwrap()
             ApplicationManager.getApplication().invokeLater {
-                StatementPathTreeDialog(project, walkedResult, vfile.fileType, caretLineText).show()
+                val dlg = StatementPathTreeDialog(project, walkedResult, vfile.fileType, caretLineText)
+                dialog = dlg
+                dlg.show()
             }
+        }
 
-//            val targetPath = statementInfos[0]
-//            val targetOffset = statementInfos[1]
-
-//            val targetVirtualFile = LocalFileSystem.getInstance().findFileByPath(targetPath)
-//            if (targetVirtualFile != null) {
-//                // 2. Open the file and navigate to offset
-//                // OpenFileDescriptor handles both opening the file (if closed) and navigating (if open)
-//                OpenFileDescriptor(project, targetVirtualFile, targetOffset).navigate(true)
-//            } else {
-//                Messages.showErrorDialog("Could not find file: $targetPath", "Navigation Error")
-//            }
-//
-//            editor.caretModel.moveToOffset(targetOffset)
-//            editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
+        // Update usages once the slow reference search completes.
+        usagesTask.result.advise(project.lifetime) { result ->
+            val walkedResult: WalkedResult = result.unwrap()
+            dialog?.setUsages(walkedResult.usages)
         }
     }
 

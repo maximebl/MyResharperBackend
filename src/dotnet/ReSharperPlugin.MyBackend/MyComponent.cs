@@ -71,16 +71,15 @@ public class MyComponent
                 if (psiSourceFile == null)
                 {
                     PluginLog.Log($"Error: psiSourceFile is null\nFile: {filePath}");
+                    return Task.FromResult<WalkedResult>(null);
                 }
 
                 var psiFile = psiSourceFile.GetPrimaryPsiFile();
                 if (psiFile == null)
                 {
                     PluginLog.Log($"Error: psiFile is null\nFile: {filePath}");
+                    return Task.FromResult<WalkedResult>(null);
                 }
-
-                var finder = solution.GetPsiServices().ParallelFinder;
-                var searchDomain = solution.GetPsiServices().SearchDomainFactory.CreateSearchDomain(solution, true);
 
                 if (psiFile is CppFile cppFile)
                 {
@@ -99,14 +98,67 @@ public class MyComponent
                         var currentFuncOffset = enclosingFunctionCppElement.GetDeclarations().FirstOrDefault()
                             .GetDocumentRange().TextRange.StartOffset;
 
-                        var currentFunc = new WalkedFunction(enclosingFunctionCppElement.ShortName,
-                            enclosingFunctionCppElement.GetSourceFiles().FirstOrDefault().GetLocation().FullPath,
+                        PluginLog.BeginSection("Enclosing Function");
+                        PluginLog.Log($"Name:   {name}\nType:   {type}\nFile:   {currentFuncPath}\nOffset: {currentFuncOffset}");
+
+                        var currentFunc = new WalkedFunction(
+                            enclosingFunctionCppElement.ShortName,
+                            currentFuncPath,
                             currentFuncOffset,
                             WalkFunctionFromNode(nodeAtOffset)
                         );
 
-                        PluginLog.BeginSection("Enclosing Function");
-                        PluginLog.Log($"Name:   {name}\nType:   {type}\nFile:   {currentFuncPath}\nOffset: {currentFuncOffset}");
+                        return Task.FromResult(new WalkedResult(currentFunc, new List<WalkedFunction>()));
+                    }
+                }
+            }
+
+            return Task.FromResult<WalkedResult>(null);
+        });
+
+        model.GetUsages.SetAsync((lt, request) =>
+        {
+            using (ReadLockCookie.Create())
+            {
+                var filePath = request.FilePath;
+                var caretOffset = request.CaretOffset;
+
+                var path = VirtualFileSystemPath.Parse(filePath, InteractionContext.SolutionContext);
+                var projectFile = solution.FindProjectItemsByLocation(path)
+                    .OfType<IProjectFile>()
+                    .FirstOrDefault();
+
+                var psiSourceFile = projectFile.ToSourceFile();
+                if (psiSourceFile == null)
+                    return Task.FromResult<WalkedResult>(null);
+
+                var psiFile = psiSourceFile.GetPrimaryPsiFile();
+                if (psiFile == null)
+                    return Task.FromResult<WalkedResult>(null);
+
+                var finder = solution.GetPsiServices().ParallelFinder;
+                var searchDomain = solution.GetPsiServices().SearchDomainFactory.CreateSearchDomain(solution, true);
+
+                if (psiFile is CppFile cppFile)
+                {
+                    var documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
+                    var nodeAtOffset = cppFile.FindNodeAt(documentOffset);
+
+                    ICppFunctionDeclaratorResolveEntity resolvedEnclosingFunction = nodeAtOffset.GetEnclosingFunction();
+                    var enclosingFuncDecl = resolvedEnclosingFunction.TryGetDeclarator() as IDeclaration;
+
+                    if (enclosingFuncDecl.DeclaredElement is ICppDeclaredElement enclosingFunctionCppElement)
+                    {
+                        var currentFuncPath = enclosingFunctionCppElement.GetSourceFiles().FirstOrDefault()
+                            .GetLocation().FullPath;
+                        var currentFuncOffset = enclosingFunctionCppElement.GetDeclarations().FirstOrDefault()
+                            .GetDocumentRange().TextRange.StartOffset;
+                        var currentFunc = new WalkedFunction(
+                            enclosingFunctionCppElement.ShortName,
+                            currentFuncPath,
+                            currentFuncOffset,
+                            WalkFunctionFromNode(nodeAtOffset)
+                        );
 
                         var seed = new DeclaredElementInstance(enclosingFunctionCppElement);
                         ICollection<DeclaredElementInstance> relatedInstances =
@@ -152,6 +204,7 @@ public class MyComponent
                             if (nodeToWalk == null)
                             {
                                 PluginLog.Log($"Error: nodeToWalk is null at offset {offset}");
+                                continue;
                             }
 
                             var enclosingFunction = nodeToWalk.GetEnclosingFunction();
@@ -186,8 +239,7 @@ public class MyComponent
                             usageFuncs.Add(func);
                         }
 
-                        var walkedResult = new WalkedResult(currentFunc, usageFuncs);
-                        return Task.FromResult(walkedResult);
+                        return Task.FromResult(new WalkedResult(currentFunc, usageFuncs));
                     }
                 }
             }

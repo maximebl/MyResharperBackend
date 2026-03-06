@@ -1,6 +1,7 @@
 package com.jetbrains.rider.plugins.mybackend
 
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
@@ -31,6 +32,9 @@ class StatementPathTreeDialog(
     private val caretLineText: String
 ) : DialogWrapper(project, true) {
 
+    private lateinit var treeModel: DefaultTreeModel
+    private lateinit var usagesHeader: DefaultMutableTreeNode
+
     init {
         isModal = false
         title = "Statement Path — ${walkedResult.current.name}"
@@ -51,21 +55,12 @@ class StatementPathTreeDialog(
         }
         parent.add(DefaultMutableTreeNode(null)) // caret leaf
 
-        // Section: usages
-        val usagesHeader = DefaultMutableTreeNode(SectionHeader("Usages (${walkedResult.usages.size})"))
+        // Section: usages (initially empty while loading)
+        usagesHeader = DefaultMutableTreeNode(SectionHeader("Usages (loading…)"))
         root.add(usagesHeader)
-        for (usage in walkedResult.usages) {
-            val usageNode = DefaultMutableTreeNode(usage)
-            usagesHeader.add(usageNode)
-            var usageParent = usageNode
-            for (stmt in usage.statements) {
-                val stmtNode = DefaultMutableTreeNode(stmt)
-                usageParent.add(stmtNode)
-                usageParent = stmtNode
-            }
-        }
 
-        val tree = Tree(DefaultTreeModel(root))
+        treeModel = DefaultTreeModel(root)
+        val tree = Tree(treeModel)
         tree.isRootVisible = false
         tree.showsRootHandles = true
         tree.cellRenderer = StatementCellRenderer(fileType, caretLineText)
@@ -79,6 +74,24 @@ class StatementPathTreeDialog(
         val panel = JBScrollPane(tree)
         panel.preferredSize = Dimension(500, 400)
         return panel
+    }
+
+    fun setUsages(usages: List<WalkedFunction>) {
+        ApplicationManager.getApplication().invokeLater {
+            usagesHeader.userObject = SectionHeader("Usages (${usages.size})")
+            usagesHeader.removeAllChildren()
+            for (usage in usages) {
+                val usageNode = DefaultMutableTreeNode(usage)
+                usagesHeader.add(usageNode)
+                var usageParent = usageNode
+                for (stmt in usage.statements) {
+                    val stmtNode = DefaultMutableTreeNode(stmt)
+                    usageParent.add(stmtNode)
+                    usageParent = stmtNode
+                }
+            }
+            treeModel.nodeStructureChanged(usagesHeader)
+        }
     }
 
     override fun getDimensionServiceKey() = "com.jetbrains.rider.plugins.mybackend.StatementPathTreeDialog"

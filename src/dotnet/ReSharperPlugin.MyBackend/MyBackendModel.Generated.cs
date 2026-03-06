@@ -43,23 +43,30 @@ namespace JetBrains.Rider.Model
     //fields
     //public fields
     [NotNull] public IRdEndpoint<MyFindRequest, WalkedResult> GetFunctionNames => _GetFunctionNames;
-    
+    [NotNull] public IRdEndpoint<MyFindRequest, WalkedResult> GetUsages => _GetUsages;
+
     //private fields
     [NotNull] private readonly RdCall<MyFindRequest, WalkedResult> _GetFunctionNames;
-    
+    [NotNull] private readonly RdCall<MyFindRequest, WalkedResult> _GetUsages;
+
     //primary constructor
     private MyBackendModel(
-      [NotNull] RdCall<MyFindRequest, WalkedResult> getFunctionNames
+      [NotNull] RdCall<MyFindRequest, WalkedResult> getFunctionNames,
+      [NotNull] RdCall<MyFindRequest, WalkedResult> getUsages
     )
     {
       if (getFunctionNames == null) throw new ArgumentNullException("getFunctionNames");
-      
+      if (getUsages == null) throw new ArgumentNullException("getUsages");
+
       _GetFunctionNames = getFunctionNames;
+      _GetUsages = getUsages;
       BindableChildren.Add(new KeyValuePair<string, object>("getFunctionNames", _GetFunctionNames));
+      BindableChildren.Add(new KeyValuePair<string, object>("getUsages", _GetUsages));
     }
     //secondary constructor
     internal MyBackendModel (
     ) : this (
+      new RdCall<MyFindRequest, WalkedResult>(MyFindRequest.Read, MyFindRequest.Write, WalkedResult.Read, WalkedResult.Write),
       new RdCall<MyFindRequest, WalkedResult>(MyFindRequest.Read, MyFindRequest.Write, WalkedResult.Read, WalkedResult.Write)
     ) {}
     //deconstruct trait
@@ -89,6 +96,7 @@ namespace JetBrains.Rider.Model
       printer.Println("MyBackendModel (");
       using (printer.IndentCookie()) {
         printer.Print("getFunctionNames = "); _GetFunctionNames.PrintEx(printer); printer.Println();
+        printer.Print("getUsages = "); _GetUsages.PrintEx(printer); printer.Println();
       }
       printer.Print(")");
     }

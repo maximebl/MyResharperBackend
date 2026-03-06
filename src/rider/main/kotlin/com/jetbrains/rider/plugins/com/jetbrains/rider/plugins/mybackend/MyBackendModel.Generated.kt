@@ -19,12 +19,13 @@ import kotlin.jvm.JvmStatic
  * #### Generated from [MyBackendModel.kt:16]
  */
 class MyBackendModel private constructor(
-    private val _getFunctionNames: RdCall<MyFindRequest, WalkedResult>
+    private val _getFunctionNames: RdCall<MyFindRequest, WalkedResult>,
+    private val _getUsages: RdCall<MyFindRequest, WalkedResult>
 ) : RdExtBase() {
     //companion
-    
+
     companion object : ISerializersOwner {
-        
+
         override fun registerSerializersCore(serializers: ISerializers)  {
             val classLoader = javaClass.classLoader
             serializers.register(LazyCompanionMarshaller(RdId(-7237491644472025097), classLoader, "com.jetbrains.rider.model.MyFindRequest"))
@@ -32,31 +33,34 @@ class MyBackendModel private constructor(
             serializers.register(LazyCompanionMarshaller(RdId(1876238290876968723), classLoader, "com.jetbrains.rider.model.WalkedFunction"))
             serializers.register(LazyCompanionMarshaller(RdId(-1188160139399588328), classLoader, "com.jetbrains.rider.model.WalkedResult"))
         }
-        
-        
-        
-        
-        
+
+
+
+
+
         const val serializationHash = -7067078345171135611L
-        
+
     }
     override val serializersOwner: ISerializersOwner get() = MyBackendModel
     override val serializationHash: Long get() = MyBackendModel.serializationHash
-    
+
     //fields
     val getFunctionNames: IRdCall<MyFindRequest, WalkedResult> get() = _getFunctionNames
+    val getUsages: IRdCall<MyFindRequest, WalkedResult> get() = _getUsages
     //methods
     //initializer
     init {
         bindableChildren.add("getFunctionNames" to _getFunctionNames)
+        bindableChildren.add("getUsages" to _getUsages)
     }
-    
+
     //secondary constructor
     internal constructor(
     ) : this(
+        RdCall<MyFindRequest, WalkedResult>(MyFindRequest, WalkedResult),
         RdCall<MyFindRequest, WalkedResult>(MyFindRequest, WalkedResult)
     )
-    
+
     //equals trait
     //hash code trait
     //pretty print
@@ -64,13 +68,15 @@ class MyBackendModel private constructor(
         printer.println("MyBackendModel (")
         printer.indent {
             print("getFunctionNames = "); _getFunctionNames.print(printer); println()
+            print("getUsages = "); _getUsages.print(printer); println()
         }
         printer.print(")")
     }
     //deepClone
     override fun deepClone(): MyBackendModel   {
         return MyBackendModel(
-            _getFunctionNames.deepClonePolymorphic()
+            _getFunctionNames.deepClonePolymorphic(),
+            _getUsages.deepClonePolymorphic()
         )
     }
     //contexts

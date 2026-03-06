@@ -48,5 +48,11 @@ object MyBackendModel : Ext(SolutionModel.Solution) {
         MyFindRequest,
         WalkedResult
     )
+
+    val getUsages = call(
+        "getUsages",
+        MyFindRequest,
+        WalkedResult
+    )
 }
 
