@@ -282,6 +282,13 @@ public class MyComponent
                 var condition = cppFor.GetCondition();
                 result.Add(new StatementInfo($"for ({condition})", offset));
             }
+            else if (current is WhileStatement whileStmt)
+            {
+                var cppWhile = whileStmt.GetResolveEntity();
+                var offset = cppWhile.GetTextOffset();
+                var condition = cppWhile.GetCondition();
+                result.Add(new StatementInfo($"while ({condition})", offset));
+            }
             else if (current is LambdaExpression lambda)
             {
                 var range = lambda.GetDocumentRange().TextRange;
