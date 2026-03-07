@@ -27,7 +27,8 @@ class MyAction : AnAction() {
         val usagesLifetime = project.lifetime.createNested()
         val usagesTask = model.getUsages.start(usagesLifetime.lifetime, request)
 
-        // Capture the current line text before the async callback.
+        // Capture caret state before the async callback.
+        val originalOffset = editor.caretModel.offset
         val lineNumber = editor.caretModel.logicalPosition.line
         val caretLineText = editor.document.getText(
             TextRange(
@@ -47,7 +48,7 @@ class MyAction : AnAction() {
         task.result.advise(project.lifetime) { result ->
             val walkedResult: WalkedResult = result.unwrap()
             ApplicationManager.getApplication().invokeLater {
-                val dlg = StatementPathTreeDialog(project, walkedResult, vfile.fileType, caretLineText)
+                val dlg = StatementPathTreeDialog(project, walkedResult, vfile.fileType, caretLineText, vfile.path, originalOffset)
                 dialog = dlg
                 Disposer.register(dlg.disposable) { usagesLifetime.terminate() }
                 dlg.show()

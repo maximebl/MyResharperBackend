@@ -3,6 +3,8 @@ package com.jetbrains.rider.plugins.mybackend
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.colors.EditorColorsManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.vfs.LocalFileSystem
 import javax.swing.JProgressBar
 import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
@@ -31,7 +33,9 @@ class StatementPathTreeDialog(
     private val project: Project,
     private val walkedResult: WalkedResult,
     private val fileType: FileType,
-    private val caretLineText: String
+    private val caretLineText: String,
+    private val originalPath: String,
+    private val originalOffset: Int
 ) : DialogWrapper(project, true) {
 
     private lateinit var treeModel: DefaultTreeModel
@@ -68,6 +72,19 @@ class StatementPathTreeDialog(
         tree.isRootVisible = false
         tree.showsRootHandles = true
         tree.cellRenderer = StatementCellRenderer(fileType, caretLineText)
+        tree.addTreeSelectionListener { e ->
+            val node = e.path.lastPathComponent as? DefaultMutableTreeNode ?: return@addTreeSelectionListener
+            navigateToNode(node, requestFocus = false)
+        }
+        tree.addKeyListener(object : java.awt.event.KeyAdapter() {
+            override fun keyPressed(e: java.awt.event.KeyEvent) {
+                if (e.keyCode == java.awt.event.KeyEvent.VK_ENTER) {
+                    val node = tree.lastSelectedPathComponent as? DefaultMutableTreeNode ?: return
+                    navigateToNode(node, requestFocus = true)
+                    close(OK_EXIT_CODE)
+                }
+            }
+        })
 
         var row = 0
         while (row < tree.rowCount) {
@@ -113,6 +130,29 @@ class StatementPathTreeDialog(
         ApplicationManager.getApplication().invokeLater {
             progressBar.isVisible = false
         }
+    }
+
+    override fun doCancelAction() {
+        val virtualFile = LocalFileSystem.getInstance().findFileByPath(originalPath) ?: return super.doCancelAction()
+        OpenFileDescriptor(project, virtualFile, originalOffset).navigate(true)
+        super.doCancelAction()
+    }
+
+    private fun navigateToNode(node: DefaultMutableTreeNode, requestFocus: Boolean) {
+        val (filePath, offset) = when (val obj = node.userObject) {
+            is WalkedFunction -> obj.path to obj.offset
+            is StatementInfo -> {
+                // Walk up to find the enclosing WalkedFunction for the file path,
+                // falling back to the current function if none is found (path-to-caret section).
+                val path = generateSequence(node.parent as? DefaultMutableTreeNode) { it.parent as? DefaultMutableTreeNode }
+                    .mapNotNull { (it.userObject as? WalkedFunction)?.path }
+                    .firstOrNull() ?: walkedResult.current.path
+                path to obj.offset
+            }
+            else -> return
+        }
+        val virtualFile = LocalFileSystem.getInstance().findFileByPath(filePath) ?: return
+        OpenFileDescriptor(project, virtualFile, offset).navigate(requestFocus)
     }
 
     override fun getDimensionServiceKey() = "com.jetbrains.rider.plugins.mybackend.StatementPathTreeDialog"
