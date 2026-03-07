@@ -327,53 +327,60 @@ namespace JetBrains.Rider.Model
     //fields
     //public fields
     [NotNull] public string Name {get; private set;}
+    [NotNull] public string Signature {get; private set;}
     [NotNull] public string Path {get; private set;}
     public int Offset {get; private set;}
     [NotNull] public List<StatementInfo> Statements {get; private set;}
-    
+
     //private fields
     //primary constructor
     public WalkedFunction(
       [NotNull] string name,
+      [NotNull] string signature,
       [NotNull] string path,
       int offset,
       [NotNull] List<StatementInfo> statements
     )
     {
       if (name == null) throw new ArgumentNullException("name");
+      if (signature == null) throw new ArgumentNullException("signature");
       if (path == null) throw new ArgumentNullException("path");
       if (statements == null) throw new ArgumentNullException("statements");
-      
+
       Name = name;
+      Signature = signature;
       Path = path;
       Offset = offset;
       Statements = statements;
     }
     //secondary constructor
     //deconstruct trait
-    public void Deconstruct([NotNull] out string name, [NotNull] out string path, out int offset, [NotNull] out List<StatementInfo> statements)
+    public void Deconstruct([NotNull] out string name, [NotNull] out string signature, [NotNull] out string path, out int offset, [NotNull] out List<StatementInfo> statements)
     {
       name = Name;
+      signature = Signature;
       path = Path;
       offset = Offset;
       statements = Statements;
     }
     //statics
     
-    public static CtxReadDelegate<WalkedFunction> Read = (ctx, reader) => 
+    public static CtxReadDelegate<WalkedFunction> Read = (ctx, reader) =>
     {
       var name = reader.ReadString();
+      var signature = reader.ReadString();
       var path = reader.ReadString();
       var offset = reader.ReadInt();
       var statements = ReadStatementInfoList(ctx, reader);
-      var _result = new WalkedFunction(name, path, offset, statements);
+      var _result = new WalkedFunction(name, signature, path, offset, statements);
       return _result;
     };
     public static CtxReadDelegate<List<StatementInfo>> ReadStatementInfoList = StatementInfo.Read.List();
     
-    public static CtxWriteDelegate<WalkedFunction> Write = (ctx, writer, value) => 
+    public static CtxWriteDelegate<WalkedFunction> Write = (ctx, writer, value) =>
     {
       writer.Write(value.Name);
+      writer.Write(value.Signature);
       writer.Write(value.Path);
       writer.Write(value.Offset);
       WriteStatementInfoList(ctx, writer, value.Statements);

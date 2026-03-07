@@ -234,27 +234,30 @@ data class StatementInfo (
  */
 data class WalkedFunction (
     val name: String,
+    val signature: String,
     val path: String,
     val offset: Int,
     val statements: List<StatementInfo>
 ) : IPrintable {
     //companion
-    
+
     companion object : IMarshaller<WalkedFunction> {
         override val _type: KClass<WalkedFunction> = WalkedFunction::class
         override val id: RdId get() = RdId(1876238290876968723)
-        
+
         @Suppress("UNCHECKED_CAST")
         override fun read(ctx: SerializationCtx, buffer: AbstractBuffer): WalkedFunction  {
             val name = buffer.readString()
+            val signature = buffer.readString()
             val path = buffer.readString()
             val offset = buffer.readInt()
             val statements = buffer.readList { StatementInfo.read(ctx, buffer) }
-            return WalkedFunction(name, path, offset, statements)
+            return WalkedFunction(name, signature, path, offset, statements)
         }
-        
+
         override fun write(ctx: SerializationCtx, buffer: AbstractBuffer, value: WalkedFunction)  {
             buffer.writeString(value.name)
+            buffer.writeString(value.signature)
             buffer.writeString(value.path)
             buffer.writeInt(value.offset)
             buffer.writeList(value.statements) { v -> StatementInfo.write(ctx, buffer, v) }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -103,6 +104,7 @@ public class MyComponent
 
                         var currentFunc = new WalkedFunction(
                             enclosingFunctionCppElement.ShortName,
+                            GetFunctionSignature(enclosingFunctionCppElement, nodeAtOffset),
                             currentFuncPath,
                             currentFuncOffset,
                             WalkFunctionFromNode(nodeAtOffset)
@@ -155,6 +157,7 @@ public class MyComponent
                             .GetDocumentRange().TextRange.StartOffset;
                         var currentFunc = new WalkedFunction(
                             enclosingFunctionCppElement.ShortName,
+                            GetFunctionSignature(enclosingFunctionCppElement, nodeAtOffset),
                             currentFuncPath,
                             currentFuncOffset,
                             WalkFunctionFromNode(nodeAtOffset)
@@ -204,10 +207,12 @@ public class MyComponent
                                 var funcDeclarator = enclosingFunction.TryGetDeclarator() as IDeclaration;
 
                                 string usageFunctionName = "<name not found>";
+                                string usageFunctionSignature = "<name not found>";
                                 string usageFunctionPath = "<path not found>";
                                 if (funcDeclarator is { DeclaredElement: ICppDeclaredElement cppFuncElement })
                                 {
                                     usageFunctionName = cppFuncElement.ShortName;
+                                    usageFunctionSignature = GetFunctionSignature(cppFuncElement, nodeAtOffset);
                                     usageFunctionPath = cppFuncElement.GetSourceFiles().FirstOrDefault().GetLocation().FullPath;
                                 }
                                 else if (nodeToWalk.GetContainingNode<LambdaExpression>() is { } lambda)
@@ -218,11 +223,13 @@ public class MyComponent
                                     var lambdaName = variableDecl?.DeclaredElement?.ShortName;
 
                                     usageFunctionName = $"{lambdaCapture} {lambdaName} {lambdaParameters}";
+                                    usageFunctionSignature = usageFunctionName;
                                     usageFunctionPath = lambda.GetLocation().FilePath;
                                 }
 
                                 var func = new WalkedFunction(
                                     usageFunctionName,
+                                    usageFunctionSignature,
                                     usageFunctionPath,
                                     offset,
                                     WalkFunctionFromNode(nodeToWalk)
@@ -310,6 +317,52 @@ public class MyComponent
 
         result.Reverse();
         return result;
+    }
+
+    private static string GetFunctionSignature(ICppDeclaredElement funcElement, ITreeNode node)
+    {
+        ICppFunctionDeclaratorResolveEntity enclosingFunc = node.GetEnclosingFunction();
+        IDeclaration enclosingFuncDecl = enclosingFunc.TryGetDeclarator() as IDeclaration;
+
+        // TryGetDeclarator returns the declarator node; we need the enclosing SimpleDeclaration
+        // which holds both the return type specifiers and the declarator.
+        var simpleDecl = enclosingFuncDecl?.GetContainingNode<SimpleDeclaration>();
+        if (simpleDecl == null) return funcElement.ShortName;
+
+        // CppFunctionDeclaration wraps the SimpleDeclaration and exposes Parameters (FunctionParameters),
+        // which is the ParametersAndQualifiers child node of the declarator.
+        var cppFuncDecl = CppFunctionDeclaration.TryCreateFromFunctionDeclaration(simpleDecl);
+        if (cppFuncDecl?.Parameters is { } funcParams)
+        {
+            // Slice the declaration text from its start to the end of the closing ')'.
+            // This captures the return type, qualified name, and parameter list — no body.
+            var declText = simpleDecl.GetText();
+            var declStart = simpleDecl.GetTreeStartOffset().Offset;
+            var paramsEnd = funcParams.GetTreeEndOffset().Offset - declStart;
+            var sigText = declText.Substring(0, paramsEnd);
+            var sb = new StringBuilder(sigText.Length);
+            bool prevWasWhitespace = false;
+            foreach (char c in sigText)
+            {
+                if (char.IsWhiteSpace(c))
+                {
+                    if (!prevWasWhitespace && sb.Length > 0) sb.Append(' ');
+                    prevWasWhitespace = true;
+                }
+                else
+                {
+                    sb.Append(c);
+                    prevWasWhitespace = false;
+                }
+            }
+            return sb.ToString();
+        }
+
+        // Fallback for forward declarations (no body): strip trailing semicolon.
+        var fullText = simpleDecl.GetText();
+        var braceIdx = fullText.IndexOf('{');
+        var sig = (braceIdx >= 0 ? fullText.Substring(0, braceIdx) : fullText).Trim().TrimEnd(';').Trim();
+        return string.Join(" ", sig.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries));
     }
 
     void DumpNodeInfo(ITreeNode node, string tag = "")

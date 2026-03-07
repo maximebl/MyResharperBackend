@@ -41,6 +41,7 @@ class StatementPathTreeDialog(
     private lateinit var treeModel: DefaultTreeModel
     private lateinit var usagesHeader: DefaultMutableTreeNode
     private lateinit var progressBar: JProgressBar
+    private lateinit var tree: Tree
     private var progressValue = 0
 
     init {
@@ -53,7 +54,8 @@ class StatementPathTreeDialog(
         val root = DefaultMutableTreeNode()
 
         // Section: path to caret
-        val pathHeader = DefaultMutableTreeNode(SectionHeader("Path to caret"))
+        val fileName = walkedResult.current.path.replace('\\', '/').substringAfterLast('/')
+        val pathHeader = DefaultMutableTreeNode(FunctionHeader(walkedResult.current.signature, fileName))
         root.add(pathHeader)
         var parent: DefaultMutableTreeNode = pathHeader
         for (info in walkedResult.current.statements) {
@@ -68,7 +70,7 @@ class StatementPathTreeDialog(
         root.add(usagesHeader)
 
         treeModel = DefaultTreeModel(root)
-        val tree = Tree(treeModel)
+        tree = Tree(treeModel)
         tree.isRootVisible = false
         tree.showsRootHandles = true
         tree.cellRenderer = StatementCellRenderer(fileType, caretLineText)
@@ -86,9 +88,15 @@ class StatementPathTreeDialog(
             }
         })
 
+        // Expand path-to-caret section fully, and expand the usages header but not its children.
         var row = 0
         while (row < tree.rowCount) {
-            tree.expandRow(row)
+            val node = tree.getPathForRow(row)?.lastPathComponent as? DefaultMutableTreeNode
+            if (node?.userObject is WalkedFunction) {
+                // Leave usage sub-nodes collapsed
+            } else {
+                tree.expandRow(row)
+            }
             row++
         }
 
@@ -120,6 +128,11 @@ class StatementPathTreeDialog(
             progressValue++
             usagesHeader.userObject = SectionHeader("Usages ($progressValue)")
             treeModel.nodeStructureChanged(usagesHeader)
+            // nodeStructureChanged can collapse usagesHeader; re-expand it but not the usage sub-nodes.
+            val usagesPath = javax.swing.tree.TreePath(
+                (treeModel.root as DefaultMutableTreeNode).let { arrayOf(it, usagesHeader) }
+            )
+            tree.expandPath(usagesPath)
             progressBar.maximum = progressValue + 1
             progressBar.value = progressValue
             progressBar.string = "Found $progressValue usage(s)…"
@@ -140,6 +153,8 @@ class StatementPathTreeDialog(
 
     private fun navigateToNode(node: DefaultMutableTreeNode, requestFocus: Boolean) {
         val (filePath, offset) = when (val obj = node.userObject) {
+            is FunctionHeader -> walkedResult.current.path to walkedResult.current.offset
+            null -> originalPath to originalOffset
             is WalkedFunction -> obj.path to obj.offset
             is StatementInfo -> {
                 // Walk up to find the enclosing WalkedFunction for the file path,
@@ -164,6 +179,7 @@ class StatementPathTreeDialog(
 }
 
 private data class SectionHeader(val text: String)
+private data class FunctionHeader(val signature: String, val fileName: String)
 
 private class StatementCellRenderer(
     private val fileType: FileType,
@@ -186,6 +202,12 @@ private class StatementCellRenderer(
 
         val node = value as? DefaultMutableTreeNode ?: return this
         when (val obj = node.userObject) {
+            is FunctionHeader -> {
+                font = codeFont
+                icon = AllIcons.Nodes.Function
+                appendHighlighted(obj.signature, fileType)
+                append("  ${obj.fileName}", SimpleTextAttributes.GRAYED_ATTRIBUTES)
+            }
             is SectionHeader -> {
                 font = uiFont
                 icon = AllIcons.Nodes.Folder
@@ -195,7 +217,8 @@ private class StatementCellRenderer(
                 font = codeFont
                 icon = AllIcons.Nodes.Function
                 appendHighlighted(obj.name, fileType)
-                append("  ${obj.path}:${obj.offset}", SimpleTextAttributes.GRAYED_ATTRIBUTES)
+                val fileName = obj.path.replace('\\', '/').substringAfterLast('/')
+                append("  $fileName:${obj.offset}", SimpleTextAttributes.GRAYED_ATTRIBUTES)
             }
             is StatementInfo -> {
                 font = codeFont
