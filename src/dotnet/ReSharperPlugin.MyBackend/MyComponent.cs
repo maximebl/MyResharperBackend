@@ -282,6 +282,13 @@ public class MyComponent
                 var condition = cppFor.GetCondition();
                 result.Add(new StatementInfo($"for ({condition})", offset));
             }
+            else if (current is RangedForBase rangeForStmt)
+            {
+                var declaration = rangeForStmt.ForRangeDeclaration?.GetText() ?? "";
+                var initializer = rangeForStmt.GetRangeInitializer()?.GetText() ?? "";
+                var offset = rangeForStmt.ForKeyword.GetNavigationRange().StartOffset.Offset;
+                result.Add(new StatementInfo($"for ({declaration} : {initializer})", offset));
+            }
             else if (current is WhileStatement whileStmt)
             {
                 var cppWhile = whileStmt.GetResolveEntity();

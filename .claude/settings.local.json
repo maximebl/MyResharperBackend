@@ -17,7 +17,10 @@
       "Bash(node --version:*)",
       "Bash(xargs cat:*)",
       "Bash(xargs powershell:*)",
-      "Bash(xargs sh:*)"
+      "Bash(xargs sh:*)",
+      "Bash(xargs basename:*)",
+      "Bash(xargs grep:*)",
+      "Bash(powershell:*)"
     ]
   }
 }
