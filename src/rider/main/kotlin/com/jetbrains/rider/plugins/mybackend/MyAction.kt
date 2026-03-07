@@ -6,6 +6,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.rd.util.lifetime
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.TextRange
 import com.jetbrains.rider.model.MyFindRequest
 import com.jetbrains.rider.model.WalkedResult
@@ -23,7 +24,8 @@ class MyAction : AnAction() {
         // Call backend (request/response).
         val request = MyFindRequest(vfile.path, editor.caretModel.offset)
         val task = model.getFunctionNames.start(project.lifetime, request)
-        val usagesTask = model.getUsages.start(project.lifetime, request)
+        val usagesLifetime = project.lifetime.createNested()
+        val usagesTask = model.getUsages.start(usagesLifetime.lifetime, request)
 
         // Capture the current line text before the async callback.
         val lineNumber = editor.caretModel.logicalPosition.line
@@ -36,20 +38,25 @@ class MyAction : AnAction() {
 
         var dialog: StatementPathTreeDialog? = null
 
+        // Stream individual usages into the dialog as they are found.
+        model.onUsageFound.advise(usagesLifetime.lifetime) { usage ->
+            dialog?.addUsage(usage)
+        }
+
         // Open dialog as soon as the current function is ready (fast path).
         task.result.advise(project.lifetime) { result ->
             val walkedResult: WalkedResult = result.unwrap()
             ApplicationManager.getApplication().invokeLater {
                 val dlg = StatementPathTreeDialog(project, walkedResult, vfile.fileType, caretLineText)
                 dialog = dlg
+                Disposer.register(dlg.disposable) { usagesLifetime.terminate() }
                 dlg.show()
             }
         }
 
-        // Update usages once the slow reference search completes.
-        usagesTask.result.advise(project.lifetime) { result ->
-            val walkedResult: WalkedResult = result.unwrap()
-            dialog?.setUsages(walkedResult.usages)
+        // Hide the progress bar when the search finishes.
+        usagesTask.result.advise(project.lifetime) { _ ->
+            dialog?.onSearchComplete()
         }
     }
 

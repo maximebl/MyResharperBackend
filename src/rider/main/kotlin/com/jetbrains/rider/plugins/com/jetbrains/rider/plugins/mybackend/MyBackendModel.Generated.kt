@@ -20,7 +20,9 @@ import kotlin.jvm.JvmStatic
  */
 class MyBackendModel private constructor(
     private val _getFunctionNames: RdCall<MyFindRequest, WalkedResult>,
-    private val _getUsages: RdCall<MyFindRequest, WalkedResult>
+    private val _getUsages: RdCall<MyFindRequest, WalkedResult>,
+    private val _onUsagesStarted: RdSignal<Int>,
+    private val _onUsageFound: RdSignal<WalkedFunction>
 ) : RdExtBase() {
     //companion
 
@@ -47,18 +49,24 @@ class MyBackendModel private constructor(
     //fields
     val getFunctionNames: IRdCall<MyFindRequest, WalkedResult> get() = _getFunctionNames
     val getUsages: IRdCall<MyFindRequest, WalkedResult> get() = _getUsages
+    val onUsagesStarted: ISignal<Int> get() = _onUsagesStarted
+    val onUsageFound: ISignal<WalkedFunction> get() = _onUsageFound
     //methods
     //initializer
     init {
         bindableChildren.add("getFunctionNames" to _getFunctionNames)
         bindableChildren.add("getUsages" to _getUsages)
+        bindableChildren.add("onUsagesStarted" to _onUsagesStarted)
+        bindableChildren.add("onUsageFound" to _onUsageFound)
     }
 
     //secondary constructor
     internal constructor(
     ) : this(
         RdCall<MyFindRequest, WalkedResult>(MyFindRequest, WalkedResult),
-        RdCall<MyFindRequest, WalkedResult>(MyFindRequest, WalkedResult)
+        RdCall<MyFindRequest, WalkedResult>(MyFindRequest, WalkedResult),
+        RdSignal<Int>(FrameworkMarshallers.Int),
+        RdSignal<WalkedFunction>(WalkedFunction)
     )
 
     //equals trait
@@ -69,6 +77,8 @@ class MyBackendModel private constructor(
         printer.indent {
             print("getFunctionNames = "); _getFunctionNames.print(printer); println()
             print("getUsages = "); _getUsages.print(printer); println()
+            print("onUsagesStarted = "); _onUsagesStarted.print(printer); println()
+            print("onUsageFound = "); _onUsageFound.print(printer); println()
         }
         printer.print(")")
     }
@@ -76,7 +86,9 @@ class MyBackendModel private constructor(
     override fun deepClone(): MyBackendModel   {
         return MyBackendModel(
             _getFunctionNames.deepClonePolymorphic(),
-            _getUsages.deepClonePolymorphic()
+            _getUsages.deepClonePolymorphic(),
+            _onUsagesStarted.deepClonePolymorphic(),
+            _onUsageFound.deepClonePolymorphic()
         )
     }
     //contexts

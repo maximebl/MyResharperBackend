@@ -3,6 +3,7 @@ package com.jetbrains.rider.plugins.mybackend
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.colors.EditorColorsManager
+import javax.swing.JProgressBar
 import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
 import com.intellij.openapi.project.Project
@@ -16,6 +17,7 @@ import com.intellij.ui.treeStructure.Tree
 import com.jetbrains.rider.model.StatementInfo
 import com.jetbrains.rider.model.WalkedFunction
 import com.jetbrains.rider.model.WalkedResult
+import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.Font
 import javax.swing.Action
@@ -34,6 +36,8 @@ class StatementPathTreeDialog(
 
     private lateinit var treeModel: DefaultTreeModel
     private lateinit var usagesHeader: DefaultMutableTreeNode
+    private lateinit var progressBar: JProgressBar
+    private var progressValue = 0
 
     init {
         isModal = false
@@ -71,26 +75,43 @@ class StatementPathTreeDialog(
             row++
         }
 
-        val panel = JBScrollPane(tree)
-        panel.preferredSize = Dimension(500, 400)
+        progressBar = JProgressBar(0, 1).apply {
+            value = 0
+            isStringPainted = true
+            string = "Searching for usages…"
+        }
+
+        val scrollPane = JBScrollPane(tree)
+        scrollPane.preferredSize = Dimension(500, 400)
+
+        val panel = javax.swing.JPanel(BorderLayout())
+        panel.add(scrollPane, BorderLayout.CENTER)
+        panel.add(progressBar, BorderLayout.SOUTH)
         return panel
     }
 
-    fun setUsages(usages: List<WalkedFunction>) {
+    fun addUsage(usage: WalkedFunction) {
         ApplicationManager.getApplication().invokeLater {
-            usagesHeader.userObject = SectionHeader("Usages (${usages.size})")
-            usagesHeader.removeAllChildren()
-            for (usage in usages) {
-                val usageNode = DefaultMutableTreeNode(usage)
-                usagesHeader.add(usageNode)
-                var usageParent = usageNode
-                for (stmt in usage.statements) {
-                    val stmtNode = DefaultMutableTreeNode(stmt)
-                    usageParent.add(stmtNode)
-                    usageParent = stmtNode
-                }
+            val usageNode = DefaultMutableTreeNode(usage)
+            usagesHeader.add(usageNode)
+            var usageParent = usageNode
+            for (stmt in usage.statements) {
+                val stmtNode = DefaultMutableTreeNode(stmt)
+                usageParent.add(stmtNode)
+                usageParent = stmtNode
             }
+            progressValue++
+            usagesHeader.userObject = SectionHeader("Usages ($progressValue)")
             treeModel.nodeStructureChanged(usagesHeader)
+            progressBar.maximum = progressValue + 1
+            progressBar.value = progressValue
+            progressBar.string = "Found $progressValue usage(s)…"
+        }
+    }
+
+    fun onSearchComplete() {
+        ApplicationManager.getApplication().invokeLater {
+            progressBar.isVisible = false
         }
     }
 

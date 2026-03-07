@@ -170,74 +170,72 @@ public class MyComponent
                         foreach (var declaredElement in targets)
                             PluginLog.Log(declaredElement.ShortName);
 
-                        int usageCount = 0;
-                        List<(IDocument Document, int Offset)> offsetsToWalk = new List<(IDocument Document, int Offset)>();
+                        var usageFuncs = new List<WalkedFunction>();
 
                         PluginLog.BeginSection("Usages");
                         var consumer = new FindResultConsumer(result =>
                         {
+                            if (!lt.IsAlive)
+                            {
+                                PluginLog.Log("Search cancelled by user.");
+                                return FindExecution.Stop;
+                            }
+
                             if (result is IFindResultReference refResult)
                             {
                                 DocumentRange usageRange = refResult.Reference.GetDocumentRange();
-                                offsetsToWalk.Add((usageRange.Document, usageRange.TextRange.StartOffset));
+                                var usageDocument = usageRange.Document;
+                                var offset = usageRange.TextRange.StartOffset;
 
-                                var usageFile =
-                                    usageRange.Document.GetPsiSourceFile(solution)?.GetLocation().Name ??
-                                    "Unknown File";
-                                PluginLog.Log($"{usageFile}\nOffset: {usageRange.TextRange.StartOffset}");
-                                usageCount++;
+                                var usageFile = usageDocument.GetPsiSourceFile(solution)?.GetLocation().Name ?? "Unknown File";
+                                PluginLog.Log($"{usageFile}\nOffset: {offset}");
+
+                                var docOffset = new DocumentOffset(usageDocument, offset);
+                                var usagePsiSourceFile = usageDocument.GetPsiSourceFile(solution);
+                                var usageCppFile = usagePsiSourceFile?.GetPrimaryPsiFile() as CppFile ?? cppFile;
+                                var nodeToWalk = usageCppFile.FindNodeAt(docOffset);
+                                if (nodeToWalk == null)
+                                {
+                                    PluginLog.Log($"Error: nodeToWalk is null at offset {offset}");
+                                    return FindExecution.Continue;
+                                }
+
+                                var enclosingFunction = nodeToWalk.GetEnclosingFunction();
+                                var funcDeclarator = enclosingFunction.TryGetDeclarator() as IDeclaration;
+
+                                string usageFunctionName = "<name not found>";
+                                string usageFunctionPath = "<path not found>";
+                                if (funcDeclarator is { DeclaredElement: ICppDeclaredElement cppFuncElement })
+                                {
+                                    usageFunctionName = cppFuncElement.ShortName;
+                                    usageFunctionPath = cppFuncElement.GetSourceFiles().FirstOrDefault().GetLocation().FullPath;
+                                }
+                                else if (nodeToWalk.GetContainingNode<LambdaExpression>() is { } lambda)
+                                {
+                                    var lambdaParameters = lambda.LambdaDeclaratorNode.GetText();
+                                    var lambdaCapture = lambda.LambdaIntroducerNode.GetText();
+                                    var variableDecl = lambda.GetContainingNode<IDeclaration>();
+                                    var lambdaName = variableDecl?.DeclaredElement?.ShortName;
+
+                                    usageFunctionName = $"{lambdaCapture} {lambdaName} {lambdaParameters}";
+                                    usageFunctionPath = lambda.GetLocation().FilePath;
+                                }
+
+                                var func = new WalkedFunction(
+                                    usageFunctionName,
+                                    usageFunctionPath,
+                                    offset,
+                                    WalkFunctionFromNode(nodeToWalk)
+                                );
+
+                                PluginLog.Log($"Function:   {func.Name}\nFile:       {func.Path}\nOffset:     {func.Offset}\nStatements: {func.Statements.Count}");
+                                model.OnUsageFound.Fire(func);
+                                usageFuncs.Add(func);
                             }
 
                             return FindExecution.Continue;
                         });
                         finder.FindReferences(targets, searchDomain, consumer, NullProgressIndicator.Instance);
-
-                        var usageFuncs = new List<WalkedFunction>();
-
-                        PluginLog.BeginSection($"Walking {offsetsToWalk.Count} Usage Location(s)");
-                        foreach (var (usageDocument, offset) in offsetsToWalk)
-                        {
-                            var docOffset = new DocumentOffset(usageDocument, offset);
-                            var usagePsiSourceFile = usageDocument.GetPsiSourceFile(solution);
-                            var usageCppFile = usagePsiSourceFile?.GetPrimaryPsiFile() as CppFile ?? cppFile;
-                            var nodeToWalk = usageCppFile.FindNodeAt(docOffset);
-                            if (nodeToWalk == null)
-                            {
-                                PluginLog.Log($"Error: nodeToWalk is null at offset {offset}");
-                                continue;
-                            }
-
-                            var enclosingFunction = nodeToWalk.GetEnclosingFunction();
-                            var funcDeclarator = enclosingFunction.TryGetDeclarator() as IDeclaration;
-
-                            string usageFunctionName = "<name not found>";
-                            string usageFunctionPath = "<path not found>";
-                            if (funcDeclarator is { DeclaredElement: ICppDeclaredElement cppFuncElement })
-                            {
-                                usageFunctionName = cppFuncElement.ShortName;
-                                usageFunctionPath = cppFuncElement.GetSourceFiles().FirstOrDefault().GetLocation().FullPath;
-                            }
-                            else if (nodeToWalk.GetContainingNode<LambdaExpression>() is { } lambda)
-                            {
-                                var lambdaParameters = lambda.LambdaDeclaratorNode.GetText();
-                                var lambdaCapture = lambda.LambdaIntroducerNode.GetText();
-                                var variableDecl = lambda.GetContainingNode<IDeclaration>();
-                                var lambdaName = variableDecl?.DeclaredElement?.ShortName;
-
-                                usageFunctionName = $"{lambdaCapture} {lambdaName} {lambdaParameters}";
-                                usageFunctionPath = lambda.GetLocation().FilePath;
-                            }
-
-                            var func = new WalkedFunction(
-                                usageFunctionName,
-                                usageFunctionPath,
-                                offset,
-                                WalkFunctionFromNode(nodeToWalk)
-                            );
-
-                            PluginLog.Log($"Function:   {func.Name}\nFile:       {func.Path}\nOffset:     {func.Offset}\nStatements: {func.Statements.Count}");
-                            usageFuncs.Add(func);
-                        }
 
                         return Task.FromResult(new WalkedResult(currentFunc, usageFuncs));
                     }

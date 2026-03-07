@@ -54,5 +54,8 @@ object MyBackendModel : Ext(SolutionModel.Solution) {
         MyFindRequest,
         WalkedResult
     )
+
+    val onUsagesStarted = signal("onUsagesStarted", PredefinedType.int)
+    val onUsageFound    = signal("onUsageFound", WalkedFunction)
 }
 

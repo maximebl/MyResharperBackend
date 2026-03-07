@@ -44,30 +44,44 @@ namespace JetBrains.Rider.Model
     //public fields
     [NotNull] public IRdEndpoint<MyFindRequest, WalkedResult> GetFunctionNames => _GetFunctionNames;
     [NotNull] public IRdEndpoint<MyFindRequest, WalkedResult> GetUsages => _GetUsages;
+    [NotNull] public ISignal<int> OnUsagesStarted => _OnUsagesStarted;
+    [NotNull] public ISignal<WalkedFunction> OnUsageFound => _OnUsageFound;
 
     //private fields
     [NotNull] private readonly RdCall<MyFindRequest, WalkedResult> _GetFunctionNames;
     [NotNull] private readonly RdCall<MyFindRequest, WalkedResult> _GetUsages;
+    [NotNull] private readonly RdSignal<int> _OnUsagesStarted;
+    [NotNull] private readonly RdSignal<WalkedFunction> _OnUsageFound;
 
     //primary constructor
     private MyBackendModel(
       [NotNull] RdCall<MyFindRequest, WalkedResult> getFunctionNames,
-      [NotNull] RdCall<MyFindRequest, WalkedResult> getUsages
+      [NotNull] RdCall<MyFindRequest, WalkedResult> getUsages,
+      [NotNull] RdSignal<int> onUsagesStarted,
+      [NotNull] RdSignal<WalkedFunction> onUsageFound
     )
     {
       if (getFunctionNames == null) throw new ArgumentNullException("getFunctionNames");
       if (getUsages == null) throw new ArgumentNullException("getUsages");
+      if (onUsagesStarted == null) throw new ArgumentNullException("onUsagesStarted");
+      if (onUsageFound == null) throw new ArgumentNullException("onUsageFound");
 
       _GetFunctionNames = getFunctionNames;
       _GetUsages = getUsages;
+      _OnUsagesStarted = onUsagesStarted;
+      _OnUsageFound = onUsageFound;
       BindableChildren.Add(new KeyValuePair<string, object>("getFunctionNames", _GetFunctionNames));
       BindableChildren.Add(new KeyValuePair<string, object>("getUsages", _GetUsages));
+      BindableChildren.Add(new KeyValuePair<string, object>("onUsagesStarted", _OnUsagesStarted));
+      BindableChildren.Add(new KeyValuePair<string, object>("onUsageFound", _OnUsageFound));
     }
     //secondary constructor
     internal MyBackendModel (
     ) : this (
       new RdCall<MyFindRequest, WalkedResult>(MyFindRequest.Read, MyFindRequest.Write, WalkedResult.Read, WalkedResult.Write),
-      new RdCall<MyFindRequest, WalkedResult>(MyFindRequest.Read, MyFindRequest.Write, WalkedResult.Read, WalkedResult.Write)
+      new RdCall<MyFindRequest, WalkedResult>(MyFindRequest.Read, MyFindRequest.Write, WalkedResult.Read, WalkedResult.Write),
+      new RdSignal<int>((ctx, reader) => reader.ReadInt(), (ctx, writer, value) => writer.Write(value)),
+      new RdSignal<WalkedFunction>(WalkedFunction.Read, WalkedFunction.Write)
     ) {}
     //deconstruct trait
     //statics
@@ -97,6 +111,8 @@ namespace JetBrains.Rider.Model
       using (printer.IndentCookie()) {
         printer.Print("getFunctionNames = "); _GetFunctionNames.PrintEx(printer); printer.Println();
         printer.Print("getUsages = "); _GetUsages.PrintEx(printer); printer.Println();
+        printer.Print("onUsagesStarted = "); _OnUsagesStarted.PrintEx(printer); printer.Println();
+        printer.Print("onUsageFound = "); _OnUsageFound.PrintEx(printer); printer.Println();
       }
       printer.Print(")");
     }
