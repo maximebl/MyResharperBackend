@@ -331,6 +331,7 @@ namespace JetBrains.Rider.Model
     [NotNull] public string Path {get; private set;}
     public int Offset {get; private set;}
     [NotNull] public List<StatementInfo> Statements {get; private set;}
+    [NotNull] public string CallSiteText {get; private set;}
 
     //private fields
     //primary constructor
@@ -339,32 +340,36 @@ namespace JetBrains.Rider.Model
       [NotNull] string signature,
       [NotNull] string path,
       int offset,
-      [NotNull] List<StatementInfo> statements
+      [NotNull] List<StatementInfo> statements,
+      [NotNull] string callSiteText
     )
     {
       if (name == null) throw new ArgumentNullException("name");
       if (signature == null) throw new ArgumentNullException("signature");
       if (path == null) throw new ArgumentNullException("path");
       if (statements == null) throw new ArgumentNullException("statements");
+      if (callSiteText == null) throw new ArgumentNullException("callSiteText");
 
       Name = name;
       Signature = signature;
       Path = path;
       Offset = offset;
       Statements = statements;
+      CallSiteText = callSiteText;
     }
     //secondary constructor
     //deconstruct trait
-    public void Deconstruct([NotNull] out string name, [NotNull] out string signature, [NotNull] out string path, out int offset, [NotNull] out List<StatementInfo> statements)
+    public void Deconstruct([NotNull] out string name, [NotNull] out string signature, [NotNull] out string path, out int offset, [NotNull] out List<StatementInfo> statements, [NotNull] out string callSiteText)
     {
       name = Name;
       signature = Signature;
       path = Path;
       offset = Offset;
       statements = Statements;
+      callSiteText = CallSiteText;
     }
     //statics
-    
+
     public static CtxReadDelegate<WalkedFunction> Read = (ctx, reader) =>
     {
       var name = reader.ReadString();
@@ -372,11 +377,12 @@ namespace JetBrains.Rider.Model
       var path = reader.ReadString();
       var offset = reader.ReadInt();
       var statements = ReadStatementInfoList(ctx, reader);
-      var _result = new WalkedFunction(name, signature, path, offset, statements);
+      var callSiteText = reader.ReadString();
+      var _result = new WalkedFunction(name, signature, path, offset, statements, callSiteText);
       return _result;
     };
     public static CtxReadDelegate<List<StatementInfo>> ReadStatementInfoList = StatementInfo.Read.List();
-    
+
     public static CtxWriteDelegate<WalkedFunction> Write = (ctx, writer, value) =>
     {
       writer.Write(value.Name);
@@ -384,6 +390,7 @@ namespace JetBrains.Rider.Model
       writer.Write(value.Path);
       writer.Write(value.Offset);
       WriteStatementInfoList(ctx, writer, value.Statements);
+      writer.Write(value.CallSiteText);
     };
     public static  CtxWriteDelegate<List<StatementInfo>> WriteStatementInfoList = StatementInfo.Write.List();
     

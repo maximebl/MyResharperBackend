@@ -237,7 +237,8 @@ data class WalkedFunction (
     val signature: String,
     val path: String,
     val offset: Int,
-    val statements: List<StatementInfo>
+    val statements: List<StatementInfo>,
+    val callSiteText: String
 ) : IPrintable {
     //companion
 
@@ -252,7 +253,8 @@ data class WalkedFunction (
             val path = buffer.readString()
             val offset = buffer.readInt()
             val statements = buffer.readList { StatementInfo.read(ctx, buffer) }
-            return WalkedFunction(name, signature, path, offset, statements)
+            val callSiteText = buffer.readString()
+            return WalkedFunction(name, signature, path, offset, statements, callSiteText)
         }
 
         override fun write(ctx: SerializationCtx, buffer: AbstractBuffer, value: WalkedFunction)  {
@@ -261,6 +263,7 @@ data class WalkedFunction (
             buffer.writeString(value.path)
             buffer.writeInt(value.offset)
             buffer.writeList(value.statements) { v -> StatementInfo.write(ctx, buffer, v) }
+            buffer.writeString(value.callSiteText)
         }
         
         

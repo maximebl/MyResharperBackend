@@ -107,7 +107,8 @@ public class MyComponent
                             GetFunctionSignature(enclosingFunctionCppElement, nodeAtOffset),
                             currentFuncPath,
                             currentFuncOffset,
-                            WalkFunctionFromNode(nodeAtOffset)
+                            WalkFunctionFromNode(nodeAtOffset),
+                            ""
                         );
 
                         return Task.FromResult(new WalkedResult(currentFunc, new List<WalkedFunction>()));
@@ -160,7 +161,8 @@ public class MyComponent
                             GetFunctionSignature(enclosingFunctionCppElement, nodeAtOffset),
                             currentFuncPath,
                             currentFuncOffset,
-                            WalkFunctionFromNode(nodeAtOffset)
+                            WalkFunctionFromNode(nodeAtOffset),
+                            ""
                         );
 
                         var seed = new DeclaredElementInstance(enclosingFunctionCppElement);
@@ -227,12 +229,19 @@ public class MyComponent
                                     usageFunctionPath = lambda.GetLocation().FilePath;
                                 }
 
+                                var docText = usageDocument.GetText();
+                                var lineStart = docText.LastIndexOf('\n', Math.Max(0, offset - 1)) + 1;
+                                var lineEnd = docText.IndexOf('\n', offset);
+                                if (lineEnd < 0) lineEnd = docText.Length;
+                                var callSiteText = docText.Substring(lineStart, lineEnd - lineStart).Trim();
+
                                 var func = new WalkedFunction(
                                     usageFunctionName,
                                     usageFunctionSignature,
                                     usageFunctionPath,
                                     offset,
-                                    WalkFunctionFromNode(nodeToWalk)
+                                    WalkFunctionFromNode(nodeToWalk),
+                                    callSiteText
                                 );
 
                                 PluginLog.Log($"Function:   {func.Name}\nFile:       {func.Path}\nOffset:     {func.Offset}\nStatements: {func.Statements.Count}");

@@ -124,6 +124,7 @@ class StatementPathTreeDialog(
                 usageParent.add(stmtNode)
                 usageParent = stmtNode
             }
+            usageParent.add(DefaultMutableTreeNode(CallSiteLeaf(usage.callSiteText)))
             progressValue++
             usagesHeader.userObject = SectionHeader("Usages ($progressValue)")
             treeModel.nodeStructureChanged(usagesHeader)
@@ -154,6 +155,12 @@ class StatementPathTreeDialog(
         val (filePath, offset) = when (val obj = node.userObject) {
             is FunctionHeader -> walkedResult.current.path to walkedResult.current.offset
             null -> originalPath to originalOffset
+            is CallSiteLeaf -> {
+                val wf = generateSequence(node.parent as? DefaultMutableTreeNode) { it.parent as? DefaultMutableTreeNode }
+                    .mapNotNull { it.userObject as? WalkedFunction }
+                    .firstOrNull() ?: return
+                wf.path to wf.offset
+            }
             is WalkedFunction -> obj.path to obj.offset
             is StatementInfo -> {
                 // Walk up to find the enclosing WalkedFunction for the file path,
@@ -179,6 +186,7 @@ class StatementPathTreeDialog(
 
 private data class SectionHeader(val text: String)
 private data class FunctionHeader(val signature: String, val fileName: String)
+private data class CallSiteLeaf(val text: String)
 
 private class StatementCellRenderer(
     private val fileType: FileType,
@@ -224,6 +232,11 @@ private class StatementCellRenderer(
                 icon = null
                 appendHighlighted(obj.name, fileType)
                 append("  offset: ${obj.offset}", SimpleTextAttributes.GRAYED_ATTRIBUTES)
+            }
+            is CallSiteLeaf -> {
+                font = codeFont
+                icon = null
+                appendHighlighted(obj.text, fileType)
             }
             null -> {
                 font = codeFont
