@@ -1,6 +1,5 @@
 package com.jetbrains.rider.plugins.mybackend
 
-import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -204,31 +203,31 @@ private class StatementCellRenderer(
         when (val obj = node.userObject) {
             is FunctionHeader -> {
                 font = codeFont
-                icon = AllIcons.Nodes.Function
+                icon = null
                 appendHighlighted(obj.signature, fileType)
                 append("  ${obj.fileName}", SimpleTextAttributes.GRAYED_ATTRIBUTES)
             }
             is SectionHeader -> {
                 font = uiFont
-                icon = AllIcons.Nodes.Folder
+                icon = null
                 append(obj.text, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES)
             }
             is WalkedFunction -> {
                 font = codeFont
-                icon = AllIcons.Nodes.Function
+                icon = null
                 appendHighlighted(obj.name, fileType)
                 val fileName = obj.path.replace('\\', '/').substringAfterLast('/')
                 append("  $fileName:${obj.offset}", SimpleTextAttributes.GRAYED_ATTRIBUTES)
             }
             is StatementInfo -> {
                 font = codeFont
-                icon = AllIcons.Nodes.Method
+                icon = null
                 appendHighlighted(obj.name, fileType)
                 append("  offset: ${obj.offset}", SimpleTextAttributes.GRAYED_ATTRIBUTES)
             }
             null -> {
                 font = codeFont
-                icon = AllIcons.General.ArrowRight
+                icon = null
                 appendHighlighted(caretLineText, fileType)
             }
         }
