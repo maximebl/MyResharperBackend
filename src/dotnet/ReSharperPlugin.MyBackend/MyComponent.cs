@@ -87,17 +87,24 @@ public class MyComponent
                     var documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
                     var nodeAtOffset = cppFile.FindNodeAt(documentOffset);
 
-                    ICppFunctionDeclaratorResolveEntity resolvedEnclosingFunction = nodeAtOffset.GetEnclosingFunction();
+                    // Climb out of any enclosing lambdas before resolving the function, so that
+                    // GetEnclosingFunction() returns the real outer function rather than the lambda.
+                    // WalkFunctionFromNode still starts from nodeAtOffset, so lambdas appear in the path.
+                    var functionSearchNode = nodeAtOffset;
+                    while (functionSearchNode?.GetContainingNode<LambdaExpression>() is { } outerLambda)
+                        functionSearchNode = outerLambda.Parent;
+
+                    ICppFunctionDeclaratorResolveEntity resolvedEnclosingFunction = functionSearchNode.GetEnclosingFunction();
                     var enclosingFuncDecl = resolvedEnclosingFunction.TryGetDeclarator() as IDeclaration;
 
-                    if (enclosingFuncDecl.DeclaredElement is ICppDeclaredElement enclosingFunctionCppElement)
+                    if (enclosingFuncDecl?.DeclaredElement is ICppDeclaredElement enclosingFunctionCppElement)
                     {
                         var name = enclosingFunctionCppElement.ShortName;
                         var type = enclosingFunctionCppElement.GetElementType().PresentableName;
                         var currentFuncPath = enclosingFunctionCppElement.GetSourceFiles().FirstOrDefault()
-                            .GetLocation().FullPath;
+                            ?.GetLocation().FullPath;
                         var currentFuncOffset = enclosingFunctionCppElement.GetDeclarations().FirstOrDefault()
-                            .GetDocumentRange().TextRange.StartOffset;
+                            ?.GetDocumentRange().TextRange.StartOffset ?? 0;
 
                         PluginLog.BeginSection("Enclosing Function");
                         PluginLog.Log($"Name:   {name}\nType:   {type}\nFile:   {currentFuncPath}\nOffset: {currentFuncOffset}");
@@ -147,15 +154,19 @@ public class MyComponent
                     var documentOffset = new DocumentOffset(psiSourceFile.Document, caretOffset);
                     var nodeAtOffset = cppFile.FindNodeAt(documentOffset);
 
-                    ICppFunctionDeclaratorResolveEntity resolvedEnclosingFunction = nodeAtOffset.GetEnclosingFunction();
+                    var functionSearchNode = nodeAtOffset;
+                    while (functionSearchNode?.GetContainingNode<LambdaExpression>() is { } outerLambda)
+                        functionSearchNode = outerLambda.Parent;
+
+                    ICppFunctionDeclaratorResolveEntity resolvedEnclosingFunction = functionSearchNode.GetEnclosingFunction();
                     var enclosingFuncDecl = resolvedEnclosingFunction.TryGetDeclarator() as IDeclaration;
 
-                    if (enclosingFuncDecl.DeclaredElement is ICppDeclaredElement enclosingFunctionCppElement)
+                    if (enclosingFuncDecl?.DeclaredElement is ICppDeclaredElement enclosingFunctionCppElement)
                     {
                         var currentFuncPath = enclosingFunctionCppElement.GetSourceFiles().FirstOrDefault()
-                            .GetLocation().FullPath;
+                            ?.GetLocation().FullPath;
                         var currentFuncOffset = enclosingFunctionCppElement.GetDeclarations().FirstOrDefault()
-                            .GetDocumentRange().TextRange.StartOffset;
+                            ?.GetDocumentRange().TextRange.StartOffset ?? 0;
                         var currentFunc = new WalkedFunction(
                             enclosingFunctionCppElement.ShortName,
                             GetFunctionSignature(enclosingFunctionCppElement, nodeAtOffset),
