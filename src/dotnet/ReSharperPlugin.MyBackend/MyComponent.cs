@@ -329,7 +329,23 @@ public class MyComponent
                 var lambdaParameters = lambda.LambdaDeclaratorNode.GetText();
                 var lambdaCapture = lambda.LambdaIntroducerNode.GetText();
                 var lambdaName = lambda.GetContainingNode<IDeclaration>()?.DeclaredElement?.ShortName;
-                result.Add(new StatementInfo($"{lambdaCapture} {lambdaName} {lambdaParameters}", range.StartOffset));
+
+                // If the lambda is passed as an argument to a function call, include that
+                // function's name for context. Walk up but stop at any outer lambda boundary.
+                var callerSuffix = "";
+                var searchNode = lambda.Parent;
+                while (searchNode != null && searchNode is not LambdaExpression)
+                {
+                    if (searchNode is CallExpression callExpr)
+                    {
+                        var invokedText = callExpr.InvokedExpression?.GetText() ?? "";
+                        callerSuffix = $" in {invokedText}(...)";
+                        break;
+                    }
+                    searchNode = searchNode.Parent;
+                }
+
+                result.Add(new StatementInfo($"{lambdaCapture} {lambdaName} {lambdaParameters}{callerSuffix}", range.StartOffset));
             }
 
             current = current.Parent;
