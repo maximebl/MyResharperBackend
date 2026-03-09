@@ -20,7 +20,9 @@
       "Bash(xargs sh:*)",
       "Bash(xargs basename:*)",
       "Bash(xargs grep:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(dotnet tool:*)",
+      "Bash(ilspycmd:*)"
     ]
   }
 }

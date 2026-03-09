@@ -44,6 +44,9 @@ using JetBrains.Diagnostics;
 using JetBrains.Rd.Util;
 using JetBrains.ReSharper.Feature.Services.Cpp.Finder;
 using JetBrains.ReSharper.Feature.Services.Cpp.UE4;
+using JetBrains.ReSharper.Psi.Cpp.Parsing;
+using JetBrains.ReSharper.Psi.Parsing;
+using JetBrains.Util.Special;
 
 namespace ReSharperPlugin.MyBackend;
 
@@ -323,6 +326,22 @@ public class MyComponent
                 var condition = cppWhile.GetCondition();
                 result.Add(new StatementInfo($"while ({condition})", offset));
             }
+            else if (current is ConditionallyNotCompiledFragment)
+            {
+                // Caret is inside an INACTIVE preprocessor block.
+                // Walk back through siblings to find the directive that introduced this inactive section
+                // (it will be the #if/#ifdef/#ifndef/#elif/#else immediately before the fragment).
+                var prevSibling = current.PrevSibling;
+                while (prevSibling != null && prevSibling is not Directive)
+                    prevSibling = prevSibling.PrevSibling;
+
+                if (prevSibling is Directive inactiveDir)
+                {
+                    var dirText = inactiveDir.GetText().Trim();
+                    var offset = inactiveDir.GetDocumentStartOffset().Offset;
+                    result.Add(new StatementInfo($"{dirText} [inactive]", offset));
+                }
+            }
             else if (current is LambdaExpression lambda)
             {
                 var range = lambda.GetDocumentRange().TextRange;
@@ -346,6 +365,50 @@ public class MyComponent
                 }
 
                 result.Add(new StatementInfo($"{lambdaCapture} {lambdaName} {lambdaParameters}{callerSuffix}", range.StartOffset));
+            }
+
+            // Detect active preprocessor sections at this tree level by walking backwards
+            // through siblings. Inactive sections are handled above via ConditionallyNotCompiledFragment;
+            // for active sections there is no wrapper node, so we must look at siblings.
+            if (current is not ConditionallyNotCompiledFragment && current is not Directive)
+            {
+                var sibling = current.PrevSibling;
+                int ppDepth = 0;
+                Directive lastElseDir = null;
+                while (sibling != null)
+                {
+                    if (sibling is Directive dir)
+                    {
+                        if (dir.IsEndIf)
+                        {
+                            ppDepth++;
+                            lastElseDir = null;
+                        }
+                        else if ((dir.IsIf || dir.IsIfDef || dir.IsIfNdef) && ppDepth > 0)
+                        {
+                            ppDepth--;
+                            lastElseDir = null;
+                        }
+                        else if ((dir.IsIf || dir.IsIfDef || dir.IsIfNdef) && ppDepth == 0)
+                        {
+                            // Found an enclosing active #if/#ifdef/#ifndef at this sibling level.
+                            var dirText = dir.GetText().Trim();
+                            var offset = dir.GetDocumentStartOffset().Offset;
+                            var label = lastElseDir != null
+                                ? $"{lastElseDir.GetText().Trim()} [active] : {dirText}"
+                                : $"{dirText} [active]";
+                            result.Add(new StatementInfo(label, offset));
+                            lastElseDir = null;
+                            // Don't stop — continue backward to find outer enclosing directives.
+                        }
+                        else if (dir.IsElseVariant && ppDepth == 0)
+                        {
+                            // Passed an #else/#elif boundary at depth 0; current is in this branch.
+                            lastElseDir = dir;
+                        }
+                    }
+                    sibling = sibling.PrevSibling;
+                }
             }
 
             current = current.Parent;
