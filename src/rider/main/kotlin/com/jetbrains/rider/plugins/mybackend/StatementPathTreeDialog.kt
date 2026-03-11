@@ -13,6 +13,7 @@ import com.intellij.ui.SimpleColoredComponent
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.util.ui.UIUtil
 import java.awt.Component
+import java.awt.event.AWTEventListener
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.Tree
 import com.jetbrains.rider.model.StatementInfo
@@ -42,11 +43,21 @@ class StatementPathTreeDialog(
     private lateinit var progressBar: JProgressBar
     private lateinit var tree: Tree
     private var progressValue = 0
+    private var isResizing = false
 
     init {
         isModal = false
         title = "Statement Path — ${walkedResult.current.name}"
         init()
+        // Remove the OS title bar. setUndecorated() requires the window to have no native peer,
+        // so we call removeNotify() to destroy it (without firing window-close events), set the
+        // flag, then pack() to recreate the peer.
+        (window as? javax.swing.JDialog)?.apply {
+            removeNotify()
+            isUndecorated = true
+            pack()
+        }
+        makeResizable()
     }
 
     override fun createCenterPanel(): JComponent {
@@ -117,7 +128,126 @@ class StatementPathTreeDialog(
         val panel = javax.swing.JPanel(BorderLayout())
         panel.add(scrollPane, BorderLayout.CENTER)
         panel.add(progressBar, BorderLayout.SOUTH)
+
+        makeDragSupport(panel)
+        makeDragSupport(tree)
+
         return panel
+    }
+
+    override fun createSouthPanel(): JComponent? = null
+
+    private fun makeResizable() {
+        val d = window as? javax.swing.JDialog ?: return
+        val border = 8
+        val N = 1; val S = 2; val W = 4; val E = 8
+        var resizeDir = 0
+        var pressX = 0; var pressY = 0
+        var pressW = 0; var pressH = 0
+        var pressLocX = 0; var pressLocY = 0
+
+        fun getDir(screenX: Int, screenY: Int): Int {
+            val loc = d.locationOnScreen
+            val x = screenX - loc.x
+            val y = screenY - loc.y
+            var dir = 0
+            if (y < border) dir = dir or N
+            if (y >= d.height - border) dir = dir or S
+            if (x < border) dir = dir or W
+            if (x >= d.width - border) dir = dir or E
+            return dir
+        }
+
+        fun resizeCursor(dir: Int) = java.awt.Cursor.getPredefinedCursor(when (dir) {
+            N      -> java.awt.Cursor.N_RESIZE_CURSOR
+            S      -> java.awt.Cursor.S_RESIZE_CURSOR
+            W      -> java.awt.Cursor.W_RESIZE_CURSOR
+            E      -> java.awt.Cursor.E_RESIZE_CURSOR
+            N or W -> java.awt.Cursor.NW_RESIZE_CURSOR
+            N or E -> java.awt.Cursor.NE_RESIZE_CURSOR
+            S or W -> java.awt.Cursor.SW_RESIZE_CURSOR
+            else   -> java.awt.Cursor.SE_RESIZE_CURSOR
+        })
+
+        val awtListener = object : AWTEventListener {
+            override fun eventDispatched(event: java.awt.AWTEvent) {
+                val e = event as? java.awt.event.MouseEvent ?: return
+                val src = e.component ?: return
+                if (!javax.swing.SwingUtilities.isDescendingFrom(src, d)) return
+
+                when (e.id) {
+                    java.awt.event.MouseEvent.MOUSE_MOVED, java.awt.event.MouseEvent.MOUSE_ENTERED -> {
+                        val dir = getDir(e.xOnScreen, e.yOnScreen)
+                        src.cursor = if (dir != 0) resizeCursor(dir) else java.awt.Cursor.getDefaultCursor()
+                    }
+                    java.awt.event.MouseEvent.MOUSE_PRESSED -> {
+                        resizeDir = getDir(e.xOnScreen, e.yOnScreen)
+                        if (resizeDir != 0) {
+                            isResizing = true
+                            pressX = e.xOnScreen; pressY = e.yOnScreen
+                            pressW = d.width; pressH = d.height
+                            pressLocX = d.x; pressLocY = d.y
+                        }
+                    }
+                    java.awt.event.MouseEvent.MOUSE_RELEASED -> {
+                        isResizing = false
+                        resizeDir = 0
+                        src.cursor = java.awt.Cursor.getDefaultCursor()
+                    }
+                    java.awt.event.MouseEvent.MOUSE_DRAGGED -> {
+                        if (resizeDir == 0) return
+                        val dx = e.xOnScreen - pressX
+                        val dy = e.yOnScreen - pressY
+                        var newX = pressLocX; var newY = pressLocY
+                        var newW = pressW;    var newH = pressH
+                        if (resizeDir and E != 0) newW = maxOf(300, pressW + dx)
+                        if (resizeDir and S != 0) newH = maxOf(200, pressH + dy)
+                        if (resizeDir and W != 0) { newW = maxOf(300, pressW - dx); newX = pressLocX + pressW - newW }
+                        if (resizeDir and N != 0) { newH = maxOf(200, pressH - dy); newY = pressLocY + pressH - newH }
+                        d.setBounds(newX, newY, newW, newH)
+                    }
+                }
+            }
+        }
+
+        val mask = java.awt.AWTEvent.MOUSE_EVENT_MASK or java.awt.AWTEvent.MOUSE_MOTION_EVENT_MASK
+        java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(awtListener, mask)
+        d.addWindowListener(object : java.awt.event.WindowAdapter() {
+            override fun windowClosed(e: java.awt.event.WindowEvent) {
+                java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(awtListener)
+            }
+        })
+    }
+
+    private fun makeDragSupport(component: java.awt.Component) {
+        var pressX = 0
+        var pressY = 0
+        var lastX = 0
+        var lastY = 0
+        var dragging = false
+        component.addMouseListener(object : java.awt.event.MouseAdapter() {
+            override fun mousePressed(e: java.awt.event.MouseEvent) {
+                pressX = e.xOnScreen; lastX = pressX
+                pressY = e.yOnScreen; lastY = pressY
+                dragging = false
+            }
+            override fun mouseReleased(e: java.awt.event.MouseEvent) {
+                dragging = false
+            }
+        })
+        component.addMouseMotionListener(object : java.awt.event.MouseMotionAdapter() {
+            override fun mouseDragged(e: java.awt.event.MouseEvent) {
+                if (isResizing) return
+                val dx = e.xOnScreen - pressX
+                val dy = e.yOnScreen - pressY
+                if (!dragging && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) dragging = true
+                if (!dragging) return
+                val w = window ?: return
+                w.location = java.awt.Point(w.x + e.xOnScreen - lastX, w.y + e.yOnScreen - lastY)
+                lastX = e.xOnScreen
+                lastY = e.yOnScreen
+            }
+        })
     }
 
     fun addUsage(usage: WalkedFunction) {
