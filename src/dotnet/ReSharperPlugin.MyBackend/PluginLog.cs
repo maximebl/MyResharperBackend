@@ -1,16 +1,15 @@
-using System;
-using System.IO;
+using JetBrains.Diagnostics;
+using JetBrains.Util;
 
 namespace ReSharperPlugin.MyBackend;
 
 public static class PluginLog
 {
-    private static readonly string LogFile = @"C:\Temp\MyBackend.log";
+    private static readonly ILogger Logger = JetBrains.Util.Logging.Logger.GetLogger("MyBackend");
 
     public static void BeginSection(string title)
     {
-        var line = $"=== [{DateTime.Now:HH:mm:ss.fff}] {title} ===";
-        File.AppendAllText(LogFile, line + Environment.NewLine);
+        Logger.Info($"=== {title} ===");
 #if RIDER
         LogWindow.AddSection(title);
 #endif
@@ -18,10 +17,9 @@ public static class PluginLog
 
     public static void Log(string message)
     {
-        var line = $"[{DateTime.Now:HH:mm:ss.fff}] {message.Trim()}";
-        File.AppendAllText(LogFile, line + Environment.NewLine);
+        Logger.Info(message.Trim());
 #if RIDER
-        LogWindow.AddEntry(line);
+        LogWindow.AddEntry(message.Trim());
 #endif
     }
 }

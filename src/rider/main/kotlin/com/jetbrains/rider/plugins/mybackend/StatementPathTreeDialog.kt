@@ -62,7 +62,8 @@ class StatementPathTreeDialog(
             parent.add(node)
             parent = node
         }
-        parent.add(DefaultMutableTreeNode(null)) // caret leaf
+        val caretLeaf = DefaultMutableTreeNode(null) // caret leaf
+        parent.add(caretLeaf)
 
         // Section: usages (initially empty while loading)
         usagesHeader = DefaultMutableTreeNode(SectionHeader("Usages (loading…)"))
@@ -98,6 +99,11 @@ class StatementPathTreeDialog(
             }
             row++
         }
+
+        // Select the caret leaf so the current position is highlighted on open.
+        val caretPath = javax.swing.tree.TreePath(caretLeaf.path)
+        tree.selectionPath = caretPath
+        tree.scrollPathToVisible(caretPath)
 
         progressBar = JProgressBar(0, 1).apply {
             value = 0
